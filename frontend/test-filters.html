@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Import SDK - Row Filtering Test</title>
+    <link rel="stylesheet" href="import-ui.css">
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            background: #f0f2f5;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            margin-top: 0;
+            color: #1a1a1a;
+        }
+
+        .info {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border-left: 4px solid #ffc107;
+        }
+
+        .info h3 {
+            margin-top: 0;
+            color: #856404;
+        }
+
+        .filter-rule {
+            background: #f8f9fa;
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin: 4px 0;
+            font-family: monospace;
+            font-size: 13px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Import SDK - Row Filtering Test</h1>
+
+        <div class="info">
+            <h3>Active Filters</h3>
+            <p><strong>Filter Rules:</strong></p>
+            <div class="filter-rule">city: value !== "Paris" (exclude Paris)</div>
+            <div class="filter-rule">typeId: value !== "3" (exclude type 3)</div>
+            <p><strong>Expected:</strong> Some rows will be filtered out and counted separately</p>
+        </div>
+
+        <div id="import-container"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="import-sdk.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const container = document.getElementById('import-container');
+
+            const sdk = ImportSDK.init(container, {
+                apiEndpoint: 'http://localhost:3011/geored/bin/service/import',
+                chunkSize: 100,
+
+                // Row filters
+                filters: {
+                    city: (val) => val !== "Paris",  // Exclude Paris
+                    typeId: (val) => val !== "3"     // Exclude type 3
+                },
+
+                onProgress: (stats) => {
+                    console.log('Progress:', stats);
+                },
+
+                onComplete: (stats) => {
+                    console.log('Complete:', stats);
+                    alert(`Import Complete!\nSuccess: ${stats.successCount}\nErrors: ${stats.errorCount}\nFiltered: ${stats.filteredCount}\nTotal: ${stats.totalCount}`);
+                }
+            });
+
+            // Auto-load test file
+            fetch('test.csv')
+                .then(response => response.blob())
+                .then(blob => {
+                    const file = new File([blob], 'test.csv', { type: 'text/csv' });
+                    sdk.handleFileSelect(file);
+                })
+                .catch(err => console.error('Error loading file:', err));
+        });
+    </script>
+</body>
+
+</html>

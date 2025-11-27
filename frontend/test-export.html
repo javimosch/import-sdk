@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Import SDK - Result Export Test</title>
+    <link rel="stylesheet" href="import-ui.css">
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            background: #f0f2f5;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            margin-top: 0;
+            color: #1a1a1a;
+        }
+
+        .info {
+            background: #d1ecf1;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border-left: 4px solid #17a2b8;
+        }
+
+        .info h3 {
+            margin-top: 0;
+            color: #0c5460;
+        }
+
+        .export-option {
+            background: #f8f9fa;
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin: 4px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Import SDK - Result Export Test</h1>
+
+        <div class="info">
+            <h3>Export Configuration</h3>
+            <p><strong>Enabled Exports:</strong></p>
+            <div class="export-option">✓ Success rows (CSV)</div>
+            <div class="export-option">✓ Error rows (CSV)</div>
+            <div class="export-option">✓ Filtered rows (CSV)</div>
+            <div class="export-option">✓ Logs (JSON)</div>
+            <p><strong>Instructions:</strong> After import completes, click "Download Results" to export data</p>
+        </div>
+
+        <div id="import-container"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="import-sdk.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const container = document.getElementById('import-container');
+
+            const sdk = ImportSDK.init(container, {
+                apiEndpoint: 'http://localhost:3011/geored/bin/service/import',
+                chunkSize: 100,
+
+                // Enable result export
+                resultExport: ['success', 'errors', 'filtered', 'logs'],
+
+                // Add filters to generate some filtered rows
+                filters: {
+                    typeId: (val) => val !== "3"  // Exclude type 3
+                },
+
+                onProgress: (stats) => {
+                    console.log('Progress:', stats);
+                },
+
+                onComplete: (stats) => {
+                    console.log('Complete:', stats);
+                    console.log('Export button should now be visible!');
+                }
+            });
+
+            // Auto-load test file
+            fetch('test.csv')
+                .then(response => response.blob())
+                .then(blob => {
+                    const file = new File([blob], 'test.csv', { type: 'text/csv' });
+                    sdk.handleFileSelect(file);
+                })
+                .catch(err => console.error('Error loading file:', err));
+        });
+    </script>
+</body>
+
+</html>

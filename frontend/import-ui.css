@@ -94,6 +94,7 @@
 /* Actions */
 .import-sdk-actions {
     display: flex;
+    gap: 10px;
     justify-content: flex-end;
     margin-bottom: 20px;
 }
@@ -115,6 +116,15 @@
 
 .import-sdk-btn-primary:hover:not(:disabled) {
     background: #2c5282;
+}
+
+.import-sdk-btn-secondary {
+    background: #e2e8f0;
+    color: #2d3748;
+}
+
+.import-sdk-btn-secondary:hover:not(:disabled) {
+    background: #cbd5e0;
 }
 
 .import-sdk-btn:disabled {
@@ -157,8 +167,9 @@
 
 .import-sdk-stats {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     gap: 12px;
+    margin-bottom: 16px;
 }
 
 .import-sdk-stat {
@@ -175,6 +186,11 @@
 .import-sdk-stat-error {
     background: #fff5f5;
     border: 1px solid #fc8181;
+}
+
+.import-sdk-stat-filtered {
+    background: #fffaf0;
+    border: 1px solid #fbd38d;
 }
 
 .import-sdk-stat-total {
@@ -196,6 +212,10 @@
     color: #742a2a;
 }
 
+.import-sdk-stat-filtered .import-sdk-stat-value {
+    color: #7c2d12;
+}
+
 .import-sdk-stat-total .import-sdk-stat-value {
     color: #2d3748;
 }
@@ -204,6 +224,67 @@
     font-size: 12px;
     color: #718096;
     font-weight: 500;
+}
+
+/* Export Actions */
+.import-sdk-export-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 16px;
+}
+
+.import-sdk-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.import-sdk-dropdown-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.import-sdk-dropdown-content {
+    display: none;
+    position: absolute;
+    right: 0;
+    background-color: white;
+    min-width: 200px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-radius: 6px;
+    z-index: 1000;
+    margin-top: 4px;
+    border: 1px solid #e2e8f0;
+}
+
+.import-sdk-dropdown-show {
+    display: block;
+}
+
+.import-sdk-dropdown-item {
+    width: 100%;
+    padding: 12px 16px;
+    text-align: left;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    color: #2d3748;
+    transition: background 0.2s;
+}
+
+.import-sdk-dropdown-item:hover {
+    background: #f7fafc;
+}
+
+.import-sdk-dropdown-item:first-child {
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+}
+
+.import-sdk-dropdown-item:last-child {
+    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: 6px;
 }
 
 /* Logs */

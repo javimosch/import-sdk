@@ -41,6 +41,8 @@ class ImportSDK {
             translations: config.translations || {},
             headers: config.headers || {},
             fetchOptions: config.fetchOptions || {},
+            filters: config.filters || {},
+            resultExport: config.resultExport || [],
             onProgress: config.onProgress || null,
             onComplete: config.onComplete || null,
             onError: config.onError || null
@@ -79,7 +81,14 @@ class ImportSDK {
             batchValidationFailed: 'Batch validation failed: {status}',
             handlerError: 'Handler error: {message}',
             invalidHandlerResponse: 'Invalid send handler response, using safe defaults',
-            sendHandlerError: 'Send handler error: {message}'
+            sendHandlerError: 'Send handler error: {message}',
+            filtered: 'Filtered',
+            downloadResults: 'Download Results',
+            downloadErrors: 'Download Errors CSV',
+            downloadSuccess: 'Download Success CSV',
+            downloadLogs: 'Download Logs JSON',
+            downloadFiltered: 'Download Filtered CSV',
+            rowFiltered: 'Row filtered: {reason}'
         };
 
         // Active file mapping (selected based on filename)
@@ -94,7 +103,11 @@ class ImportSDK {
             successCount: 0,
             errorCount: 0,
             totalCount: 0,
-            logs: []
+            filteredCount: 0,
+            logs: [],
+            successRows: [],
+            errorRows: [],
+            filteredRows: []
         };
 
         this.rowBuffer = [];
@@ -175,9 +188,23 @@ class ImportSDK {
                             <div class="import-sdk-stat-value" id="import-sdk-error-count">0</div>
                             <div class="import-sdk-stat-label">${this.t('errors')}</div>
                         </div>
+                        <div class="import-sdk-stat import-sdk-stat-filtered" id="import-sdk-filtered-stat" style="display: none;">
+                            <div class="import-sdk-stat-value" id="import-sdk-filtered-count">0</div>
+                            <div class="import-sdk-stat-label">${this.t('filtered')}</div>
+                        </div>
                         <div class="import-sdk-stat import-sdk-stat-total">
                             <div class="import-sdk-stat-value" id="import-sdk-total-count">0</div>
                             <div class="import-sdk-stat-label">${this.t('total')}</div>
+                        </div>
+                    </div>
+                    <div class="import-sdk-export-actions" id="import-sdk-export-actions" style="display: none;">
+                        <div class="import-sdk-dropdown">
+                            <button class="import-sdk-btn import-sdk-btn-secondary import-sdk-dropdown-btn" id="import-sdk-export-btn">
+                                ${this.t('downloadResults')} ▼
+                            </button>
+                            <div class="import-sdk-dropdown-content" id="import-sdk-export-menu">
+                                <!-- Export options will be added dynamically -->
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -376,8 +403,9 @@ class ImportSDK {
                 this.log(this.t('parsingComplete'));
                 if (this.rowBuffer.length > 0 && this.state.mode === 'import') {
                     // Send remaining rows
+                    const batch = [...this.rowBuffer];
                     const result = await this.sendBatch(this.rowBuffer);
-                    this.handleBatchResult(result);
+                    this.handleBatchResult(result, batch);
                     this.rowBuffer = [];
                 }
                 this.finishImport();
@@ -390,9 +418,21 @@ class ImportSDK {
     }
 
     async processRows(newRows, parser) {
-        // Transform and Validate rows
+        // Filter, Transform, and Validate rows
         for (const row of newRows) {
+            // 1. Apply filters first (before transform)
+            const filterResult = this.filterRow(row);
+            if (!filterResult.passed) {
+                this.state.filteredCount++;
+                this.state.filteredRows.push({ ...row, _filterReason: filterResult.reason });
+                this.log(this.t('rowFiltered', { reason: filterResult.reason }), 'info');
+                continue; // Skip this row
+            }
+
+            // 2. Transform
             const transformed = this.transformRow(row);
+            
+            // 3. Validate
             const validation = this.validateRow(transformed);
 
             if (validation.isValid) {
@@ -402,11 +442,13 @@ class ImportSDK {
                     // In check mode, just count success
                     this.state.successCount++;
                     this.state.totalCount++;
+                    this.state.successRows.push(transformed);
                 }
             } else {
                 // Invalid row
                 this.state.errorCount++;
                 this.state.totalCount++;
+                this.state.errorRows.push({ ...transformed, _error: validation.error });
                 this.log(this.t('validationError', { error: validation.error }), 'error');
             }
         }
@@ -435,10 +477,12 @@ class ImportSDK {
 
             if (batchesToSend.length > 0) {
                 // Send batches in parallel
-                const results = await Promise.all(batchesToSend.map(batch => this.sendBatch(batch)));
+                const results = await Promise.all(batchesToSend.map(batch => 
+                    this.sendBatch(batch).then(result => ({ result, batch }))
+                ));
                 
                 // Process results
-                results.forEach(result => this.handleBatchResult(result));
+                results.forEach(({ result, batch }) => this.handleBatchResult(result, batch));
 
                 // Wait if configured and we still have data to process (or just wait between parallel bursts)
                 if (this.config.waitBetweenChunks > 0) {
@@ -446,6 +490,24 @@ class ImportSDK {
                 }
             }
         }
+    }
+
+    filterRow(row) {
+        if (!this.config.filters || Object.keys(this.config.filters).length === 0) {
+            return { passed: true };
+        }
+
+        for (const [field, filterFn] of Object.entries(this.config.filters)) {
+            const value = row[field];
+            if (!filterFn(value)) {
+                return { 
+                    passed: false, 
+                    reason: `${field}=${value}` 
+                };
+            }
+        }
+
+        return { passed: true };
     }
 
     validateRow(row) {
@@ -589,17 +651,35 @@ class ImportSDK {
         }
     }
 
-    handleBatchResult(result) {
+    handleBatchResult(result, batch) {
         this.state.successCount += result.success;
         this.state.errorCount += result.errors.length;
         this.state.totalCount += (result.success + result.errors.length);
 
-        result.errors.forEach(err => {
-            this.log(`Error: ${err.message}`, 'error');
-            if (this.config.onError) {
-                this.config.onError(err);
-            }
-        });
+        // Store success rows (if resultExport includes 'success')
+        if (this.config.resultExport.includes('success') && batch) {
+            // Assume first N rows were successful
+            const successRows = batch.slice(0, result.success);
+            this.state.successRows.push(...successRows);
+        }
+
+        // Store error rows (if resultExport includes 'errors')
+        if (this.config.resultExport.includes('errors')) {
+            result.errors.forEach(err => {
+                this.state.errorRows.push({ ...err.data, _error: err.message });
+                this.log(`Error: ${err.message}`, 'error');
+                if (this.config.onError) {
+                    this.config.onError(err);
+                }
+            });
+        } else {
+            result.errors.forEach(err => {
+                this.log(`Error: ${err.message}`, 'error');
+                if (this.config.onError) {
+                    this.config.onError(err);
+                }
+            });
+        }
 
         this.updateStats();
 
@@ -607,7 +687,8 @@ class ImportSDK {
             this.config.onProgress({
                 successCount: this.state.successCount,
                 errorCount: this.state.errorCount,
-                totalCount: this.state.totalCount
+                totalCount: this.state.totalCount,
+                filteredCount: this.state.filteredCount
             });
         }
     }
@@ -616,6 +697,12 @@ class ImportSDK {
         document.getElementById('import-sdk-success-count').textContent = this.state.successCount;
         document.getElementById('import-sdk-error-count').textContent = this.state.errorCount;
         document.getElementById('import-sdk-total-count').textContent = this.state.totalCount;
+
+        // Show/update filtered count if filters are configured
+        if (Object.keys(this.config.filters).length > 0) {
+            document.getElementById('import-sdk-filtered-stat').style.display = 'block';
+            document.getElementById('import-sdk-filtered-count').textContent = this.state.filteredCount;
+        }
 
         const progress = this.state.totalCount > 0 
             ? Math.round((this.state.totalCount / (this.state.totalCount + this.rowBuffer.length)) * 100)
@@ -645,14 +732,105 @@ class ImportSDK {
             
         this.log(finishMsg, 'success');
 
+        // Show export button if resultExport is configured
+        if (this.config.resultExport.length > 0) {
+            this.setupExportMenu();
+            document.getElementById('import-sdk-export-actions').style.display = 'block';
+        }
+
         if (this.config.onComplete) {
             this.config.onComplete({
                 successCount: this.state.successCount,
                 errorCount: this.state.errorCount,
                 totalCount: this.state.totalCount,
+                filteredCount: this.state.filteredCount,
                 logs: this.state.logs
             });
         }
+    }
+
+    setupExportMenu() {
+        const menu = document.getElementById('import-sdk-export-menu');
+        menu.innerHTML = '';
+
+        if (this.config.resultExport.includes('errors') && this.state.errorRows.length > 0) {
+            const btn = document.createElement('button');
+            btn.textContent = this.t('downloadErrors');
+            btn.className = 'import-sdk-dropdown-item';
+            btn.onclick = () => this.exportErrors();
+            menu.appendChild(btn);
+        }
+
+        if (this.config.resultExport.includes('success') && this.state.successRows.length > 0) {
+            const btn = document.createElement('button');
+            btn.textContent = this.t('downloadSuccess');
+            btn.className = 'import-sdk-dropdown-item';
+            btn.onclick = () => this.exportSuccess();
+            menu.appendChild(btn);
+        }
+
+        if (this.config.resultExport.includes('filtered') && this.state.filteredRows.length > 0) {
+            const btn = document.createElement('button');
+            btn.textContent = this.t('downloadFiltered');
+            btn.className = 'import-sdk-dropdown-item';
+            btn.onclick = () => this.exportFiltered();
+            menu.appendChild(btn);
+        }
+
+        if (this.config.resultExport.includes('logs') && this.state.logs.length > 0) {
+            const btn = document.createElement('button');
+            btn.textContent = this.t('downloadLogs');
+            btn.className = 'import-sdk-dropdown-item';
+            btn.onclick = () => this.exportLogs();
+            menu.appendChild(btn);
+        }
+
+        // Toggle dropdown on button click
+        const exportBtn = document.getElementById('import-sdk-export-btn');
+        exportBtn.onclick = () => {
+            menu.classList.toggle('import-sdk-dropdown-show');
+        };
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.matches('.import-sdk-dropdown-btn')) {
+                menu.classList.remove('import-sdk-dropdown-show');
+            }
+        });
+    }
+
+    exportErrors() {
+        const csv = Papa.unparse(this.state.errorRows);
+        this.downloadFile(csv, 'import-errors.csv', 'text/csv');
+        this.log('Downloaded errors CSV', 'success');
+    }
+
+    exportSuccess() {
+        const csv = Papa.unparse(this.state.successRows);
+        this.downloadFile(csv, 'import-success.csv', 'text/csv');
+        this.log('Downloaded success CSV', 'success');
+    }
+
+    exportFiltered() {
+        const csv = Papa.unparse(this.state.filteredRows);
+        this.downloadFile(csv, 'import-filtered.csv', 'text/csv');
+        this.log('Downloaded filtered CSV', 'success');
+    }
+
+    exportLogs() {
+        const json = JSON.stringify(this.state.logs, null, 2);
+        this.downloadFile(json, 'import-logs.json', 'application/json');
+        this.log('Downloaded logs JSON', 'success');
+    }
+
+    downloadFile(content, filename, mimeType) {
+        const blob = new Blob([content], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
     }
 }
 
