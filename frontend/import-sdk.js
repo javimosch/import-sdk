@@ -39,6 +39,8 @@ class ImportSDK {
             fileMappings: config.fileMappings || [],
             locale: config.locale || 'en',
             translations: config.translations || {},
+            headers: config.headers || {},
+            fetchOptions: config.fetchOptions || {},
             onProgress: config.onProgress || null,
             onComplete: config.onComplete || null,
             onError: config.onError || null
@@ -489,11 +491,21 @@ class ImportSDK {
             updateByTankNumber: config.updateByTankNumber
         };
 
-        const response = await fetch(config.apiEndpoint, {
+        // Merge default headers with custom headers
+        const headers = {
+            'Content-Type': 'application/json',
+            ...config.headers
+        };
+
+        // Merge default fetch options with custom options
+        const fetchOptions = {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
+            headers: headers,
+            body: JSON.stringify(payload),
+            ...config.fetchOptions
+        };
+
+        const response = await fetch(config.apiEndpoint, fetchOptions);
 
         const data = await response.json();
         const result = { success: 0, errors: [] };

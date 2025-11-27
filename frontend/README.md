@@ -60,6 +60,8 @@ A lightweight, reusable JavaScript library for importing CSV files in chunks to 
 | `validate` | object | `{}` | Validation rules for fields |
 | `locale` | string | `'en'` | Current locale ('en', 'fr', etc.) |
 | `translations` | object | `{}` | Translation dictionary keyed by locale |
+| `headers` | object | `{}` | Custom HTTP headers for default fetch handler |
+| `fetchOptions` | object | `{}` | Additional fetch options (credentials, mode, etc.) |
 | `sendHandler` | function | `null` | Custom function to send batches to API |
 | `fileMappings` | array | `[]` | Array of file-specific mapping configurations |
 | `onProgress` | function | `null` | Callback for progress updates |
@@ -116,6 +118,27 @@ ImportSDK.init(container, {
     }
 });
 ```
+
+### Custom Headers & Fetch Options
+
+When using the default fetch-based send handler, you can customize HTTP headers and fetch options:
+
+```javascript
+ImportSDK.init(container, {
+    // ...
+    headers: {
+        'Authorization': 'Bearer YOUR_TOKEN_HERE',
+        'X-Custom-Header': 'custom-value'
+    },
+    fetchOptions: {
+        credentials: 'include',
+        mode: 'cors'
+    }
+});
+```
+
+- **headers**: Merged with default `Content-Type: application/json`. Custom headers override defaults.
+- **fetchOptions**: Additional fetch API options like `credentials`, `mode`, `cache`, etc.
 
 ### Custom Send Handler
 
