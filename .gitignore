@@ -2,3 +2,4 @@ data
 backend/data
 node_modules
 .env
+*.csv
