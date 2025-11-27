@@ -1,0 +1,288 @@
+/* Import SDK Styles - Scoped with .import-sdk-* prefix */
+
+.import-sdk-container {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    color: #333;
+}
+
+/* Upload Area */
+.import-sdk-upload-area {
+    border: 2px dashed #cbd5e0;
+    border-radius: 8px;
+    padding: 40px 20px;
+    text-align: center;
+    background: #f7fafc;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    margin-bottom: 20px;
+}
+
+.import-sdk-upload-area:hover {
+    background: #edf2f7;
+    border-color: #a0aec0;
+}
+
+.import-sdk-upload-area.import-sdk-dragover {
+    background: #e6f7ff;
+    border-color: #3182ce;
+}
+
+.import-sdk-upload-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.import-sdk-upload-icon {
+    width: 48px;
+    height: 48px;
+    color: #a0aec0;
+    stroke-width: 2;
+}
+
+.import-sdk-upload-text {
+    font-size: 16px;
+    font-weight: 500;
+    color: #2d3748;
+    margin: 0;
+}
+
+.import-sdk-upload-hint {
+    font-size: 12px;
+    color: #718096;
+    margin: 0;
+}
+
+.import-sdk-file-info {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 8px 16px;
+    background: #ebf8ff;
+    border-radius: 20px;
+    display: inline-flex;
+}
+
+.import-sdk-file-name {
+    font-size: 14px;
+    color: #2c5282;
+    font-weight: 500;
+}
+
+.import-sdk-remove-btn {
+    background: none;
+    border: none;
+    color: #2c5282;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.import-sdk-remove-btn:hover {
+    color: #1a365d;
+}
+
+/* Actions */
+.import-sdk-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 20px;
+}
+
+.import-sdk-btn {
+    padding: 10px 24px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+}
+
+.import-sdk-btn-primary {
+    background: #3182ce;
+    color: white;
+}
+
+.import-sdk-btn-primary:hover:not(:disabled) {
+    background: #2c5282;
+}
+
+.import-sdk-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Progress */
+.import-sdk-progress {
+    margin-bottom: 20px;
+    padding: 20px;
+    background: #f7fafc;
+    border-radius: 8px;
+}
+
+.import-sdk-progress-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #2d3748;
+}
+
+.import-sdk-progress-bar-bg {
+    width: 100%;
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 16px;
+}
+
+.import-sdk-progress-bar {
+    height: 100%;
+    background: #3182ce;
+    transition: width 0.3s ease;
+    width: 0%;
+}
+
+.import-sdk-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+
+.import-sdk-stat {
+    text-align: center;
+    padding: 12px;
+    border-radius: 6px;
+}
+
+.import-sdk-stat-success {
+    background: #f0fff4;
+    border: 1px solid #9ae6b4;
+}
+
+.import-sdk-stat-error {
+    background: #fff5f5;
+    border: 1px solid #fc8181;
+}
+
+.import-sdk-stat-total {
+    background: #f7fafc;
+    border: 1px solid #cbd5e0;
+}
+
+.import-sdk-stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.import-sdk-stat-success .import-sdk-stat-value {
+    color: #22543d;
+}
+
+.import-sdk-stat-error .import-sdk-stat-value {
+    color: #742a2a;
+}
+
+.import-sdk-stat-total .import-sdk-stat-value {
+    color: #2d3748;
+}
+
+.import-sdk-stat-label {
+    font-size: 12px;
+    color: #718096;
+    font-weight: 500;
+}
+
+/* Logs */
+.import-sdk-logs-container {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.import-sdk-logs-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: #f7fafc;
+    border-bottom: 1px solid #e2e8f0;
+    font-weight: 500;
+    color: #2d3748;
+}
+
+.import-sdk-clear-btn {
+    background: none;
+    border: none;
+    color: #718096;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 4px 8px;
+    transition: color 0.2s;
+}
+
+.import-sdk-clear-btn:hover {
+    color: #2d3748;
+}
+
+.import-sdk-logs {
+    height: 200px;
+    overflow-y: auto;
+    padding: 12px 16px;
+    background: white;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+}
+
+.import-sdk-log {
+    padding: 4px 0;
+    line-height: 1.5;
+}
+
+.import-sdk-log-time {
+    color: #a0aec0;
+    margin-right: 8px;
+}
+
+.import-sdk-log-info {
+    color: #2d3748;
+}
+
+.import-sdk-log-success {
+    color: #22543d;
+}
+
+.import-sdk-log-error {
+    color: #c53030;
+}
+
+/* Scrollbar */
+.import-sdk-logs::-webkit-scrollbar {
+    width: 8px;
+}
+
+.import-sdk-logs::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.import-sdk-logs::-webkit-scrollbar-thumb {
+    background: #cbd5e0;
+    border-radius: 4px;
+}
+
+.import-sdk-logs::-webkit-scrollbar-thumb:hover {
+    background: #a0aec0;
+}

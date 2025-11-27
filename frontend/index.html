@@ -1,122 +1,91 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Imports POC</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Import SDK Demo</title>
+    <link rel="stylesheet" href="import-ui.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
-        /* Custom scrollbar for logs */
-        .logs-container::-webkit-scrollbar {
-            width: 8px;
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
-        .logs-container::-webkit-scrollbar-track {
-            background: #f1f1f1;
+
+        .demo-header {
+            text-align: center;
+            margin-bottom: 40px;
         }
-        .logs-container::-webkit-scrollbar-thumb {
-            background: #888;
-            border-radius: 4px;
+
+        .demo-header h1 {
+            color: #2d3748;
+            margin: 0 0 10px 0;
         }
-        .logs-container::-webkit-scrollbar-thumb:hover {
-            background: #555;
+
+        .demo-header p {
+            color: #718096;
+            margin: 0;
         }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen p-8 font-sans text-gray-800">
 
-    <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
-        
-        <!-- Header -->
-        <div class="bg-gradient-to-r from-blue-600 to-indigo-700 p-6 text-white">
-            <h1 class="text-3xl font-bold">Imports POC</h1>
-            <p class="mt-2 opacity-90">Upload and import CSV files in chunks.</p>
-        </div>
-
-        <div class="p-6 space-y-8">
-
-            <!-- Configuration -->
-            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                <h2 class="text-lg font-semibold mb-4 text-gray-700">Configuration</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Chunk Size (rows)</label>
-                        <input type="number" id="chunkSize" value="100" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">API Endpoint</label>
-                        <input type="text" id="apiEndpoint" value="http://localhost:3000/geored/bin/service/import" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                </div>
-            </div>
-
-            <!-- Upload Area -->
-            <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:bg-gray-50 transition-colors" id="dropZone">
-                <input type="file" id="fileInput" accept=".csv" class="hidden">
-                <div class="space-y-2 cursor-pointer" onclick="document.getElementById('fileInput').click()">
-                    <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
-                        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                    <div class="text-gray-600">
-                        <span class="font-medium text-blue-600 hover:text-blue-500">Upload a file</span>
-                        or drag and drop
-                    </div>
-                    <p class="text-xs text-gray-500">CSV up to 50MB</p>
-                </div>
-                <div id="fileInfo" class="mt-4 hidden">
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                        <span id="fileName" class="mr-2">file.csv</span>
-                        <button id="removeFile" class="text-blue-600 hover:text-blue-800">&times;</button>
-                    </span>
-                </div>
-            </div>
-
-            <!-- Actions -->
-            <div class="flex justify-end">
-                <button id="importBtn" class="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-                    Start Import
-                </button>
-            </div>
-
-            <!-- Progress -->
-            <div id="progressSection" class="hidden space-y-4">
-                <div class="flex justify-between text-sm font-medium text-gray-700">
-                    <span>Progress</span>
-                    <span id="progressText">0%</span>
-                </div>
-                <div class="w-full bg-gray-200 rounded-full h-2.5">
-                    <div id="progressBar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
-                </div>
-                <div class="grid grid-cols-3 gap-4 text-center text-sm">
-                    <div class="bg-green-50 p-2 rounded border border-green-200">
-                        <div class="font-bold text-green-700" id="successCount">0</div>
-                        <div class="text-green-600">Success</div>
-                    </div>
-                    <div class="bg-red-50 p-2 rounded border border-red-200">
-                        <div class="font-bold text-red-700" id="errorCount">0</div>
-                        <div class="text-red-600">Errors</div>
-                    </div>
-                    <div class="bg-gray-50 p-2 rounded border border-gray-200">
-                        <div class="font-bold text-gray-700" id="totalCount">0</div>
-                        <div class="text-gray-600">Total Processed</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Logs -->
-            <div class="border border-gray-200 rounded-lg overflow-hidden">
-                <div class="bg-gray-50 px-4 py-2 border-b border-gray-200 font-medium text-gray-700 flex justify-between items-center">
-                    <span>Logs</span>
-                    <button id="clearLogs" class="text-xs text-gray-500 hover:text-gray-700">Clear</button>
-                </div>
-                <div id="logs" class="logs-container h-64 overflow-y-auto p-4 font-mono text-sm space-y-1 bg-white">
-                    <div class="text-gray-400 italic">Ready to start...</div>
-                </div>
-            </div>
-
-        </div>
+<body>
+    <div class="demo-header">
+        <h1>Import SDK Demo</h1>
+        <p>Reusable CSV Import Library</p>
     </div>
 
-    <script src="app.js"></script>
+    <!-- SDK will be injected here -->
+    <div id="import-container"></div>
+
+    <script src="import-sdk.js"></script>
+    <script>
+        // Initialize the SDK with configuration
+        ImportSDK.init(document.getElementById('import-container'), {
+            // API Configuration
+            apiEndpoint: 'http://localhost:3000/geored/bin/service/import',
+            chunkSize: 100,
+            updateByTankNumber: false,
+
+            // Field Mapping - Maps CSV columns to API fields
+            // Example: 'Tank ID' in CSV -> 'tankNumber' in API
+            fieldMapping: {
+                'Tank ID': 'tankNumber',
+                'Type': 'typeId',
+                'Location': 'city',
+                'Lat': 'latitude',
+                'Long': 'longitude'
+            },
+
+            // Transformers - Custom functions to transform field values
+            transformers: {
+                typeId: (value) => {
+                    // Convert string to integer
+                    return parseInt(value) || null;
+                },
+                latitude: (value) => {
+                    return parseFloat(value) || null;
+                },
+                longitude: (value) => {
+                    return parseFloat(value) || null;
+                }
+            },
+
+            // Callbacks (optional)
+            onProgress: (stats) => {
+                console.log('Progress:', stats);
+            },
+            onComplete: (result) => {
+                console.log('Import complete:', result);
+            },
+            onError: (error) => {
+                console.error('Import error:', error);
+            }
+        });
+    </script>
 </body>
+
 </html>
