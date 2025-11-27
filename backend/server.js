@@ -4,11 +4,12 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 const DB_PATH = path.join(__dirname, 'data', 'db.json');
 
-app.use(cors());
+app.use(cors("*"));
 app.use(bodyParser.json({ limit: '50mb' })); // Increase limit for large chunks
 
 // Helper to read DB
