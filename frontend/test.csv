@@ -1,0 +1,6 @@
+tankNumber,typeId,city,latitude,longitude
+TANK_001,1,Paris,48.8566,2.3522
+TANK_002,1,Lyon,45.7640,4.8357
+TANK_003,1,Marseille,43.2965,5.3698
+TANK_004,1,Bordeaux,44.8378,-0.5792
+TANK_005,1,Lille,50.6292,3.0573
