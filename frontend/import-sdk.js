@@ -90,6 +90,9 @@ class ImportSDK {
                 </div>
 
                 <div class="import-sdk-actions">
+                    <button class="import-sdk-btn import-sdk-btn-secondary" id="import-sdk-check-btn" disabled>
+                        Check File
+                    </button>
                     <button class="import-sdk-btn import-sdk-btn-primary" id="import-sdk-start-btn" disabled>
                         Start Import
                     </button>
@@ -97,7 +100,7 @@ class ImportSDK {
 
                 <div class="import-sdk-progress" id="import-sdk-progress" style="display: none;">
                     <div class="import-sdk-progress-header">
-                        <span>Progress</span>
+                        <span id="import-sdk-progress-title">Progress</span>
                         <span id="import-sdk-progress-text">0%</span>
                     </div>
                     <div class="import-sdk-progress-bar-bg">
@@ -138,6 +141,7 @@ class ImportSDK {
         const uploadPrompt = document.getElementById('import-sdk-upload-prompt');
         const removeBtn = document.getElementById('import-sdk-remove-file');
         const startBtn = document.getElementById('import-sdk-start-btn');
+        const checkBtn = document.getElementById('import-sdk-check-btn');
         const clearLogsBtn = document.getElementById('import-sdk-clear-logs');
 
         // Click to upload
@@ -169,7 +173,10 @@ class ImportSDK {
         });
 
         // Start import
-        startBtn.addEventListener('click', () => this.startImport());
+        startBtn.addEventListener('click', () => this.startImport('import'));
+        
+        // Check file
+        checkBtn.addEventListener('click', () => this.startImport('check'));
 
         // Clear logs
         clearLogsBtn.addEventListener('click', () => this.clearLogs());
@@ -190,6 +197,7 @@ class ImportSDK {
         document.getElementById('import-sdk-file-info').style.display = 'flex';
         document.getElementById('import-sdk-upload-prompt').style.display = 'none';
         document.getElementById('import-sdk-start-btn').disabled = false;
+        document.getElementById('import-sdk-check-btn').disabled = false;
         
         const mappingInfo = this.activeMapping.name ? ` (Mapping: ${this.activeMapping.name})` : '';
         this.log(`File selected: ${file.name} (${(file.size / 1024).toFixed(2)} KB)${mappingInfo}`);
@@ -212,7 +220,8 @@ class ImportSDK {
                 this.activeMapping = {
                     name: mapping.name || 'Custom',
                     fieldMapping: mapping.fieldMapping || {},
-                    transformers: mapping.transformers || {}
+                    transformers: mapping.transformers || {},
+                    validate: mapping.validate || {}
                 };
                 this.log(`Using mapping: ${this.activeMapping.name}`);
                 return;
@@ -223,7 +232,8 @@ class ImportSDK {
         this.activeMapping = {
             name: null,
             fieldMapping: this.config.fieldMapping,
-            transformers: this.config.transformers
+            transformers: this.config.transformers,
+            validate: this.config.validate || {}
         };
     }
 
@@ -233,6 +243,7 @@ class ImportSDK {
         document.getElementById('import-sdk-file-info').style.display = 'none';
         document.getElementById('import-sdk-upload-prompt').style.display = 'block';
         document.getElementById('import-sdk-start-btn').disabled = true;
+        document.getElementById('import-sdk-check-btn').disabled = true;
         this.log('File removed.');
     }
 
@@ -256,21 +267,34 @@ class ImportSDK {
         this.state.logs = [];
     }
 
-    startImport() {
+    startImport(mode = 'import') {
         if (!this.state.selectedFile || this.state.isProcessing) return;
 
         this.state.isProcessing = true;
+        this.state.mode = mode;
         this.state.successCount = 0;
         this.state.errorCount = 0;
         this.state.totalCount = 0;
         this.rowBuffer = [];
 
-        document.getElementById('import-sdk-start-btn').disabled = true;
-        document.getElementById('import-sdk-start-btn').textContent = 'Importing...';
+        const startBtn = document.getElementById('import-sdk-start-btn');
+        const checkBtn = document.getElementById('import-sdk-check-btn');
+        
+        startBtn.disabled = true;
+        checkBtn.disabled = true;
+        
+        if (mode === 'check') {
+            checkBtn.textContent = 'Checking...';
+            document.getElementById('import-sdk-progress-title').textContent = 'Validation Progress';
+        } else {
+            startBtn.textContent = 'Importing...';
+            document.getElementById('import-sdk-progress-title').textContent = 'Import Progress';
+        }
+        
         document.getElementById('import-sdk-progress').style.display = 'block';
 
         this.updateStats();
-        this.log(`Starting import... Chunk size: ${this.config.chunkSize}`);
+        this.log(`Starting ${mode === 'check' ? 'validation' : 'import'}... Chunk size: ${this.config.chunkSize}`);
 
         Papa.parse(this.state.selectedFile, {
             header: true,
@@ -283,7 +307,7 @@ class ImportSDK {
             },
             complete: async () => {
                 this.log('Parsing complete. Finishing up...');
-                if (this.rowBuffer.length > 0) {
+                if (this.rowBuffer.length > 0 && this.state.mode === 'import') {
                     // Send remaining rows
                     const result = await this.sendBatch(this.rowBuffer);
                     this.handleBatchResult(result);
@@ -299,7 +323,34 @@ class ImportSDK {
     }
 
     async processRows(newRows, parser) {
-        this.rowBuffer.push(...newRows);
+        // Transform and Validate rows
+        for (const row of newRows) {
+            const transformed = this.transformRow(row);
+            const validation = this.validateRow(transformed);
+
+            if (validation.isValid) {
+                if (this.state.mode === 'import') {
+                    this.rowBuffer.push(transformed);
+                } else {
+                    // In check mode, just count success
+                    this.state.successCount++;
+                    this.state.totalCount++;
+                }
+            } else {
+                // Invalid row
+                this.state.errorCount++;
+                this.state.totalCount++;
+                this.log(`Validation Error: ${validation.error}`, 'error');
+            }
+        }
+        
+        // Update stats periodically
+        this.updateStats();
+
+        // If in check mode, we don't send batches
+        if (this.state.mode === 'check') {
+            return;
+        }
 
         // While we have enough data for at least one batch
         while (this.rowBuffer.length >= this.config.chunkSize) {
@@ -328,6 +379,18 @@ class ImportSDK {
                 }
             }
         }
+    }
+
+    validateRow(row) {
+        if (!this.activeMapping.validate) return { isValid: true };
+
+        for (const [field, [validator, msg]] of Object.entries(this.activeMapping.validate)) {
+            if (!validator(row[field])) {
+                return { isValid: false, error: msg || `Invalid ${field}` };
+            }
+        }
+
+        return { isValid: true };
     }
 
     transformRow(row) {
@@ -483,11 +546,18 @@ class ImportSDK {
 
     finishImport() {
         this.state.isProcessing = false;
-        document.getElementById('import-sdk-start-btn').disabled = false;
-        document.getElementById('import-sdk-start-btn').textContent = 'Start Import';
+        
+        const startBtn = document.getElementById('import-sdk-start-btn');
+        const checkBtn = document.getElementById('import-sdk-check-btn');
+        
+        startBtn.disabled = false;
+        checkBtn.disabled = false;
+        startBtn.textContent = 'Start Import';
+        checkBtn.textContent = 'Check File';
+        
         document.getElementById('import-sdk-progress-bar').style.width = '100%';
         document.getElementById('import-sdk-progress-text').textContent = '100%';
-        this.log('Import finished.', 'success');
+        this.log(`${this.state.mode === 'check' ? 'Validation' : 'Import'} finished.`, 'success');
 
         if (this.config.onComplete) {
             this.config.onComplete({

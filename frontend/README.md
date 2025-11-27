@@ -57,6 +57,7 @@ A lightweight, reusable JavaScript library for importing CSV files in chunks to 
 | `updateByTankNumber` | boolean | `false` | Update existing records by tank number |
 | `fieldMapping` | object | `{}` | Map CSV column names to API field names |
 | `transformers` | object | `{}` | Custom transformation functions for fields |
+| `validate` | object | `{}` | Validation rules for fields |
 | `sendHandler` | function | `null` | Custom function to send batches to API |
 | `fileMappings` | array | `[]` | Array of file-specific mapping configurations |
 | `onProgress` | function | `null` | Callback for progress updates |
@@ -77,6 +78,24 @@ ImportSDK.init(container, {
 
 - **Concurrency**: The SDK will take `concurrency` chunks from the buffer and send them simultaneously using `Promise.all`.
 - **Wait Time**: After a batch of parallel requests completes, the SDK will wait for `waitBetweenChunks` milliseconds before processing the next batch.
+
+### Validation & Check Mode
+
+You can validate data before importing using the "Check File" button. Configure validation rules in the `validate` object.
+
+```javascript
+ImportSDK.init(container, {
+    // ...
+    validate: {
+        // Field name: [Validator Function, Error Message]
+        tankNumber: [(val) => !!val, "Tank Number is required"],
+        latitude: [(val) => !isNaN(parseFloat(val)), "Invalid Latitude"]
+    }
+});
+```
+
+- **Check Mode**: Clicking "Check File" runs the parser and validators without sending data to the API.
+- **Validation**: Rows failing validation are counted as errors and logged, but not added to the import buffer.
 
 ## Custom Send Handler
 

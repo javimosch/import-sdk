@@ -76,6 +76,10 @@
                         typeId: (value) => parseInt(value) || null,
                         latitude: (value) => parseFloat(value) || null,
                         longitude: (value) => parseFloat(value) || null
+                    },
+                    validate: {
+                        latitude: [(v) => !!v, "Latitude is required"],
+                        tankNumber: [(v) => !!v, "Tank Number is required"]
                     }
                 }
             ],
