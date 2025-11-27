@@ -101,6 +101,49 @@ ImportSDK.init(container, {
 - **Check Mode**: Clicking "Check File" runs the parser and validators without sending data to the API.
 - **Validation**: Rows failing validation are counted as errors and logged, but not added to the import buffer.
 
+## Configuration Reference
+
+Complete list of all configuration options available for `ImportSDK.init()`:
+
+### Core Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `apiEndpoint` | `string` | **Required** | API endpoint for data submission |
+| `chunkSize` | `number` | `100` | Number of rows to process per batch |
+| `updateByTankNumber` | `boolean` | `false` | Whether to update existing records by tank number |
+
+### Export & Filtering
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `resultExport` | `string[]` | `[]` | Data types to collect: `['success', 'errors', 'filtered', 'logs']` |
+| `filters` | `object` | `{}` | Row filtering functions to exclude data before validation |
+
+### Data Processing
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `fieldMapping` | `object` | `{}` | Map CSV column names to API field names |
+| `transformers` | `object` | `{}` | Transform field values before validation |
+| `validators` | `object` | `{}` | Client-side validation rules |
+
+### Advanced
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `fileMappings` | `array` | `[]` | File-specific configuration overrides based on filename patterns |
+| `sendHandler` | `function` | `null` | Custom API request handler function |
+| `i18n` | `object` | `{}` | Internationalization strings for UI text |
+
+### Callbacks
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `onProgress` | `function` | `null` | Called after each chunk: `(stats) => {}` |
+| `onComplete` | `function` | `null` | Called when import finishes: `(result) => {}` |
+| `onError` | `function` | `null` | Called for each error: `(error) => {}` |
+
 ### Internationalization (i18n)
 
 The SDK supports multiple languages. You can configure the `locale` and provide `translations`.
@@ -360,6 +403,134 @@ onError: (error) => {
 }
 ```
 
+## Result Export Configuration
+
+Control which data gets exported and made available for download after the import process:
+
+```javascript
+ImportSDK.init(container, {
+    apiEndpoint: 'http://localhost:3000/api/import',
+    
+    // Configure what data to collect and export
+    resultExport: ['success', 'errors', 'filtered', 'logs'],
+    
+    // Other config...
+});
+```
+
+### Available Export Types
+
+| Type | Description | Export Function |
+|------|-------------|-----------------|
+| `'success'` | Records that were successfully imported | `sdk.exportSuccess()` |
+| `'errors'` | Records that failed validation or import | `sdk.exportErrors()` |
+| `'filtered'` | Records excluded by filters | `sdk.exportFiltered()` |
+| `'logs'` | Import operation logs and messages | `sdk.exportLogs()` |
+
+### Export Methods
+
+After import completion, use these methods to download the collected data:
+
+```javascript
+// Export successful imports
+sdk.exportSuccess(); // Downloads: import-success.csv
+
+// Export failed records with error messages
+sdk.exportErrors(); // Downloads: import-errors.csv
+
+// Export filtered out records
+sdk.exportFiltered(); // Downloads: import-filtered.csv
+
+// Export operation logs
+sdk.exportLogs(); // Downloads: import-logs.csv
+
+// Export all data types at once
+sdk.exportAll(); // Downloads: import-results.csv
+```
+
+**Note:** Only data types included in `resultExport` will be collected. Omitting a type saves memory for large imports.
+
+## Data Filtering
+
+Configure filters to exclude rows based on custom logic before validation and import:
+
+```javascript
+ImportSDK.init(container, {
+    apiEndpoint: 'http://localhost:3000/api/import',
+    
+    // Define row filters
+    filters: {
+        // Skip rows where city is empty
+        skipEmptyCity: (row) => row.city && row.city.trim() !== '',
+        
+        // Only process specific tank types
+        allowedTypes: (row) => ['1', '2', '3'].includes(row.typeId),
+        
+        // Skip test data
+        excludeTest: (row) => !row.tankNumber.startsWith('TEST_'),
+        
+        // Geographic filter
+        parisOnly: (row) => row.city === 'Paris'
+    }
+});
+```
+
+### Filter Function Signature
+
+Each filter is a function that receives a transformed row and returns `true` to keep or `false` to exclude:
+
+```javascript
+filterName: (transformedRow, originalRow, rowIndex) => boolean
+```
+
+**Parameters:**
+- `transformedRow`: Row data after field mapping and transformers
+- `originalRow`: Original CSV row data before transformation
+- `rowIndex`: Zero-based row number in the CSV file
+
+**Example with all parameters:**
+```javascript
+filters: {
+    conditionalFilter: (transformed, original, index) => {
+        // Skip header row (if somehow present)
+        if (index === 0) return false;
+        
+        // Log original vs transformed
+        console.log(`Row ${index}: ${original.cityName} -> ${transformed.city}`);
+        
+        // Keep rows where latitude is valid
+        return !isNaN(parseFloat(transformed.latitude));
+    }
+}
+```
+
+### Filter Processing Order
+
+1. CSV is parsed into rows
+2. Field mapping is applied
+3. Transformers are applied
+4. **Filters are applied** (filtered rows are stored separately)
+5. Validators are applied to remaining rows
+6. Valid rows are sent to the API
+
+### Working with Filtered Data
+
+```javascript
+// Access filtered data programmatically
+const stats = sdk.getStats();
+console.log(`Filtered out: ${stats.filteredCount} rows`);
+
+// Export filtered data for review
+sdk.exportFiltered(); // Contains rows that didn't pass filters
+
+// Use in callbacks
+onComplete: (result) => {
+    if (result.filteredCount > 0) {
+        alert(`${result.filteredCount} rows were filtered out. Check the filtered export for details.`);
+    }
+}
+```
+
 ## Complete Example
 
 ```javascript
@@ -368,6 +539,17 @@ ImportSDK.init(document.getElementById('import-container'), {
     apiEndpoint: 'http://localhost:3000/geored/bin/service/import',
     chunkSize: 100,
     updateByTankNumber: false,
+    
+    // Export Configuration
+    resultExport: ['success', 'errors', 'filtered', 'logs'],
+    
+    // Data Filters
+    filters: {
+        validCoordinates: (row) => {
+            return !isNaN(parseFloat(row.latitude)) && !isNaN(parseFloat(row.longitude));
+        },
+        excludeTestData: (row) => !row.tankNumber.startsWith('TEST_')
+    },
 
     // Field Mapping
     fieldMapping: {
