@@ -9,6 +9,11 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const DB_PATH = path.join(__dirname, 'data', 'db.json');
 
+// New: Simulated processing time
+const EXTRA_PROCESSING_TIME = parseInt(process.env.EXTRA_PROCESSING_TIME, 10) || 1000;
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+
 app.use(cors("*"));
 app.use(bodyParser.json({ limit: '50mb' })); // Increase limit for large chunks
 
@@ -85,7 +90,11 @@ const validateBin = (bin, existingBins) => {
 };
 
 // Import Endpoint
-app.post('/geored/bin/service/import', (req, res) => {
+app.post('/geored/bin/service/import', async (req, res) => {
+    // New: Simulate delay
+    if (EXTRA_PROCESSING_TIME > 0) {
+        await sleep(EXTRA_PROCESSING_TIME);
+    }
     const { bins, updateByTankNumber } = req.body;
     
     if (!bins || !Array.isArray(bins)) {
