@@ -58,6 +58,8 @@ A lightweight, reusable JavaScript library for importing CSV files in chunks to 
 | `fieldMapping` | object | `{}` | Map CSV column names to API field names |
 | `transformers` | object | `{}` | Custom transformation functions for fields |
 | `validate` | object | `{}` | Validation rules for fields |
+| `locale` | string | `'en'` | Current locale ('en', 'fr', etc.) |
+| `translations` | object | `{}` | Translation dictionary keyed by locale |
 | `sendHandler` | function | `null` | Custom function to send batches to API |
 | `fileMappings` | array | `[]` | Array of file-specific mapping configurations |
 | `onProgress` | function | `null` | Callback for progress updates |
@@ -97,7 +99,25 @@ ImportSDK.init(container, {
 - **Check Mode**: Clicking "Check File" runs the parser and validators without sending data to the API.
 - **Validation**: Rows failing validation are counted as errors and logged, but not added to the import buffer.
 
-## Custom Send Handler
+### Internationalization (i18n)
+
+The SDK supports multiple languages. You can configure the `locale` and provide `translations`.
+
+```javascript
+ImportSDK.init(container, {
+    // ...
+    locale: 'fr',
+    translations: {
+        fr: {
+            uploadPrompt: "Cliquez pour télécharger ou glissez-déposez",
+            startImport: "Démarrer l'importation",
+            // ... see defaultTranslations in source for all keys
+        }
+    }
+});
+```
+
+### Custom Send Handler
 
 Use a custom function to send data to your API. This is useful when you have an existing API wrapper or need custom request logic.
 

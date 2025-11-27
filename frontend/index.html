@@ -83,6 +83,46 @@
                     }
                 }
             ],
+            // Internationalization (i18n)
+            locale: 'fr', // Change to 'fr' to test French
+            translations: {
+                fr: {
+                    uploadPrompt: "Cliquez pour télécharger ou glissez-déposez",
+                    uploadHint: "Fichiers CSV uniquement",
+                    checkFile: "Vérifier le fichier",
+                    startImport: "Démarrer l'importation",
+                    importing: "Importation...",
+                    checking: "Vérification...",
+                    progressTitle: "Progression",
+                    importProgress: "Progression de l'importation",
+                    validationProgress: "Progression de la validation",
+                    success: "Succès",
+                    errors: "Erreurs",
+                    total: "Total",
+                    logs: "Journaux",
+                    clearLogs: "Effacer",
+                    ready: "Prêt à démarrer...",
+                    fileSelected: "Fichier sélectionné : {filename} ({size} KB){mapping}",
+                    mappingInfo: " (Cartographie : {name})",
+                    fileRemoved: "Fichier supprimé.",
+                    logsCleared: "Journaux effacés...",
+                    parsingComplete: "Analyse terminée. Finalisation...",
+                    importFinished: "Importation terminée.",
+                    validationFinished: "Validation terminée.",
+                    errorCsvOnly: "Veuillez télécharger un fichier CSV.",
+                    usingMapping: "Utilisation de la cartographie : {name}",
+                    parsingError: "Erreur d'analyse : {message}",
+                    validationError: "Erreur de validation : {error}",
+                    networkError: "Erreur réseau : {message}",
+                    serverError: "Erreur serveur : {status} {statusText}",
+                    batchValidationFailed: "Échec de la validation du lot : {status}",
+                    handlerError: "Erreur du gestionnaire : {message}",
+                    invalidHandlerResponse: "Réponse invalide du gestionnaire, utilisation des valeurs par défaut",
+                    sendHandlerError: "Erreur du gestionnaire d'envoi : {message}"
+                }
+            },
+
+
 
             // Fallback mapping (if no pattern matches)
             fieldMapping: {},
@@ -108,7 +148,7 @@
                         updateByTankNumber: config.updateByTankNumber
                     })
                 });
-
+    
                 const data = await response.json();
                 
                 // Transform to SDK format

@@ -37,9 +37,47 @@ class ImportSDK {
             transformers: config.transformers || {},
             sendHandler: config.sendHandler || null,
             fileMappings: config.fileMappings || [],
+            locale: config.locale || 'en',
+            translations: config.translations || {},
             onProgress: config.onProgress || null,
             onComplete: config.onComplete || null,
             onError: config.onError || null
+        };
+
+        // Default translations (English)
+        this.defaultTranslations = {
+            uploadPrompt: 'Click to upload or drag and drop',
+            uploadHint: 'CSV files only',
+            checkFile: 'Check File',
+            startImport: 'Start Import',
+            importing: 'Importing...',
+            checking: 'Checking...',
+            progressTitle: 'Progress',
+            importProgress: 'Import Progress',
+            validationProgress: 'Validation Progress',
+            success: 'Success',
+            errors: 'Errors',
+            total: 'Total',
+            logs: 'Logs',
+            clearLogs: 'Clear',
+            ready: 'Ready to start...',
+            fileSelected: 'File selected: {filename} ({size} KB){mapping}',
+            mappingInfo: ' (Mapping: {name})',
+            fileRemoved: 'File removed.',
+            logsCleared: 'Logs cleared...',
+            parsingComplete: 'Parsing complete. Finishing up...',
+            importFinished: 'Import finished.',
+            validationFinished: 'Validation finished.',
+            errorCsvOnly: 'Please upload a CSV file.',
+            usingMapping: 'Using mapping: {name}',
+            parsingError: 'Parsing error: {message}',
+            validationError: 'Validation Error: {error}',
+            networkError: 'Network error: {message}',
+            serverError: 'Server error: {status} {statusText}',
+            batchValidationFailed: 'Batch validation failed: {status}',
+            handlerError: 'Handler error: {message}',
+            invalidHandlerResponse: 'Invalid send handler response, using safe defaults',
+            sendHandlerError: 'Send handler error: {message}'
         };
 
         // Active file mapping (selected based on filename)
@@ -63,6 +101,26 @@ class ImportSDK {
     }
 
     /**
+     * Get translated string
+     * @param {string} key - Translation key
+     * @param {Object} params - Parameters to replace in string
+     */
+    t(key, params = {}) {
+        const locale = this.config.locale;
+        // Try custom translation -> default translation -> key
+        let template = (this.config.translations[locale] && this.config.translations[locale][key]) 
+            || this.defaultTranslations[key] 
+            || key;
+
+        // Replace params
+        Object.keys(params).forEach(param => {
+            template = template.replace(`{${param}}`, params[param]);
+        });
+
+        return template;
+    }
+
+    /**
      * Initialize the SDK
      * @param {HTMLElement} container - DOM element to inject the UI into
      * @param {Object} config - Configuration object
@@ -80,8 +138,8 @@ class ImportSDK {
                         <svg class="import-sdk-upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
                         </svg>
-                        <p class="import-sdk-upload-text">Click to upload or drag and drop</p>
-                        <p class="import-sdk-upload-hint">CSV files only</p>
+                        <p class="import-sdk-upload-text">${this.t('uploadPrompt')}</p>
+                        <p class="import-sdk-upload-hint">${this.t('uploadHint')}</p>
                     </div>
                     <div class="import-sdk-file-info" id="import-sdk-file-info" style="display: none;">
                         <span class="import-sdk-file-name" id="import-sdk-file-name"></span>
@@ -91,16 +149,16 @@ class ImportSDK {
 
                 <div class="import-sdk-actions">
                     <button class="import-sdk-btn import-sdk-btn-secondary" id="import-sdk-check-btn" disabled>
-                        Check File
+                        ${this.t('checkFile')}
                     </button>
                     <button class="import-sdk-btn import-sdk-btn-primary" id="import-sdk-start-btn" disabled>
-                        Start Import
+                        ${this.t('startImport')}
                     </button>
                 </div>
 
                 <div class="import-sdk-progress" id="import-sdk-progress" style="display: none;">
                     <div class="import-sdk-progress-header">
-                        <span id="import-sdk-progress-title">Progress</span>
+                        <span id="import-sdk-progress-title">${this.t('progressTitle')}</span>
                         <span id="import-sdk-progress-text">0%</span>
                     </div>
                     <div class="import-sdk-progress-bar-bg">
@@ -109,26 +167,26 @@ class ImportSDK {
                     <div class="import-sdk-stats">
                         <div class="import-sdk-stat import-sdk-stat-success">
                             <div class="import-sdk-stat-value" id="import-sdk-success-count">0</div>
-                            <div class="import-sdk-stat-label">Success</div>
+                            <div class="import-sdk-stat-label">${this.t('success')}</div>
                         </div>
                         <div class="import-sdk-stat import-sdk-stat-error">
                             <div class="import-sdk-stat-value" id="import-sdk-error-count">0</div>
-                            <div class="import-sdk-stat-label">Errors</div>
+                            <div class="import-sdk-stat-label">${this.t('errors')}</div>
                         </div>
                         <div class="import-sdk-stat import-sdk-stat-total">
                             <div class="import-sdk-stat-value" id="import-sdk-total-count">0</div>
-                            <div class="import-sdk-stat-label">Total</div>
+                            <div class="import-sdk-stat-label">${this.t('total')}</div>
                         </div>
                     </div>
                 </div>
 
                 <div class="import-sdk-logs-container">
                     <div class="import-sdk-logs-header">
-                        <span>Logs</span>
-                        <button class="import-sdk-clear-btn" id="import-sdk-clear-logs">Clear</button>
+                        <span>${this.t('logs')}</span>
+                        <button class="import-sdk-clear-btn" id="import-sdk-clear-logs">${this.t('clearLogs')}</button>
                     </div>
                     <div class="import-sdk-logs" id="import-sdk-logs">
-                        <div class="import-sdk-log import-sdk-log-info">Ready to start...</div>
+                        <div class="import-sdk-log import-sdk-log-info">${this.t('ready')}</div>
                     </div>
                 </div>
             </div>
@@ -185,7 +243,7 @@ class ImportSDK {
     handleFileSelect(file) {
         if (!file) return;
         if (!file.name.endsWith('.csv')) {
-            this.log('Please upload a CSV file.', 'error');
+            this.log(this.t('errorCsvOnly'), 'error');
             return;
         }
 
@@ -199,8 +257,15 @@ class ImportSDK {
         document.getElementById('import-sdk-start-btn').disabled = false;
         document.getElementById('import-sdk-check-btn').disabled = false;
         
-        const mappingInfo = this.activeMapping.name ? ` (Mapping: ${this.activeMapping.name})` : '';
-        this.log(`File selected: ${file.name} (${(file.size / 1024).toFixed(2)} KB)${mappingInfo}`);
+        const mappingInfo = this.activeMapping.name 
+            ? this.t('mappingInfo', { name: this.activeMapping.name }) 
+            : '';
+            
+        this.log(this.t('fileSelected', { 
+            filename: file.name, 
+            size: (file.size / 1024).toFixed(2),
+            mapping: mappingInfo
+        }));
     }
 
     selectFileMapping(filename) {
@@ -223,7 +288,7 @@ class ImportSDK {
                     transformers: mapping.transformers || {},
                     validate: mapping.validate || {}
                 };
-                this.log(`Using mapping: ${this.activeMapping.name}`);
+                this.log(this.t('usingMapping', { name: this.activeMapping.name }));
                 return;
             }
         }
@@ -244,7 +309,7 @@ class ImportSDK {
         document.getElementById('import-sdk-upload-prompt').style.display = 'block';
         document.getElementById('import-sdk-start-btn').disabled = true;
         document.getElementById('import-sdk-check-btn').disabled = true;
-        this.log('File removed.');
+        this.log(this.t('fileRemoved'));
     }
 
     log(message, type = 'info') {
@@ -263,7 +328,7 @@ class ImportSDK {
 
     clearLogs() {
         document.getElementById('import-sdk-logs').innerHTML = 
-            '<div class="import-sdk-log import-sdk-log-info">Logs cleared...</div>';
+            `<div class="import-sdk-log import-sdk-log-info">${this.t('logsCleared')}</div>`;
         this.state.logs = [];
     }
 
@@ -284,17 +349,17 @@ class ImportSDK {
         checkBtn.disabled = true;
         
         if (mode === 'check') {
-            checkBtn.textContent = 'Checking...';
-            document.getElementById('import-sdk-progress-title').textContent = 'Validation Progress';
+            checkBtn.textContent = this.t('checking');
+            document.getElementById('import-sdk-progress-title').textContent = this.t('validationProgress');
         } else {
-            startBtn.textContent = 'Importing...';
-            document.getElementById('import-sdk-progress-title').textContent = 'Import Progress';
+            startBtn.textContent = this.t('importing');
+            document.getElementById('import-sdk-progress-title').textContent = this.t('importProgress');
         }
         
         document.getElementById('import-sdk-progress').style.display = 'block';
 
         this.updateStats();
-        this.log(`Starting ${mode === 'check' ? 'validation' : 'import'}... Chunk size: ${this.config.chunkSize}`);
+        this.log(`${mode === 'check' ? this.t('checking') : this.t('importing')} Chunk size: ${this.config.chunkSize}`);
 
         Papa.parse(this.state.selectedFile, {
             header: true,
@@ -306,7 +371,7 @@ class ImportSDK {
                 parser.resume();
             },
             complete: async () => {
-                this.log('Parsing complete. Finishing up...');
+                this.log(this.t('parsingComplete'));
                 if (this.rowBuffer.length > 0 && this.state.mode === 'import') {
                     // Send remaining rows
                     const result = await this.sendBatch(this.rowBuffer);
@@ -316,7 +381,7 @@ class ImportSDK {
                 this.finishImport();
             },
             error: (err) => {
-                this.log(`Parsing error: ${err.message}`, 'error');
+                this.log(this.t('parsingError', { message: err.message }), 'error');
                 this.finishImport();
             }
         });
@@ -340,7 +405,7 @@ class ImportSDK {
                 // Invalid row
                 this.state.errorCount++;
                 this.state.totalCount++;
-                this.log(`Validation Error: ${validation.error}`, 'error');
+                this.log(this.t('validationError', { error: validation.error }), 'error');
             }
         }
         
@@ -452,7 +517,7 @@ class ImportSDK {
                     result.success = batch.length;
                 } else {
                     result.errors = batch.map((_, i) => ({
-                        message: `Batch validation failed: ${response.status}`,
+                        message: this.t('batchValidationFailed', { status: response.status }),
                         data: null
                     }));
                 }
@@ -460,7 +525,7 @@ class ImportSDK {
         } else {
             // Server error
             result.errors = batch.map((_, i) => ({
-                message: `Server error: ${response.status} ${response.statusText}`,
+                message: this.t('serverError', { status: response.status, statusText: response.statusText }),
                 data: null
             }));
         }
@@ -477,11 +542,12 @@ class ImportSDK {
             try {
                 result = await sendHandler(batch, this.config);
             } catch (handlerError) {
+                this.log(this.t('sendHandlerError', { message: handlerError.message }), 'error');
                 // Safe default on handler error
                 result = {
                     success: 0,
                     errors: batch.map(() => ({
-                        message: `Handler error: ${handlerError.message}`,
+                        message: this.t('handlerError', { message: handlerError.message }),
                         data: null
                     }))
                 };
@@ -489,6 +555,7 @@ class ImportSDK {
 
             // Validate result structure and apply safe defaults
             if (!result || typeof result !== 'object') {
+                this.log(this.t('invalidHandlerResponse'), 'error');
                 result = { success: 0, errors: [] };
             }
             if (typeof result.success !== 'number') result.success = 0;
@@ -498,10 +565,12 @@ class ImportSDK {
 
         } catch (err) {
             // Network or unexpected error
+            this.state.errorCount += batch.length;
+            this.log(this.t('networkError', { message: err.message }), 'error');
             return {
                 success: 0,
                 errors: batch.map(() => ({
-                    message: `Network error: ${err.message}`,
+                    message: this.t('networkError', { message: err.message }),
                     data: null
                 }))
             };
@@ -552,12 +621,17 @@ class ImportSDK {
         
         startBtn.disabled = false;
         checkBtn.disabled = false;
-        startBtn.textContent = 'Start Import';
-        checkBtn.textContent = 'Check File';
+        startBtn.textContent = this.t('startImport');
+        checkBtn.textContent = this.t('checkFile');
         
         document.getElementById('import-sdk-progress-bar').style.width = '100%';
         document.getElementById('import-sdk-progress-text').textContent = '100%';
-        this.log(`${this.state.mode === 'check' ? 'Validation' : 'Import'} finished.`, 'success');
+        
+        const finishMsg = this.state.mode === 'check' 
+            ? this.t('validationFinished') 
+            : this.t('importFinished');
+            
+        this.log(finishMsg, 'success');
 
         if (this.config.onComplete) {
             this.config.onComplete({

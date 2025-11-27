@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Import SDK i18n Test (French)</title>
+    <link rel="stylesheet" href="import-ui.css">
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            background: #f0f2f5;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            margin-top: 0;
+            color: #1a1a1a;
+        }
+
+        #test-logs {
+            margin-top: 20px;
+            padding: 10px;
+            background: #eee;
+            border: 1px solid #ccc;
+            height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Import SDK - i18n Test (French)</h1>
+        <p>Testing with: locale='fr'</p>
+        <div id="import-container"></div>
+        <div id="test-logs"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="import-sdk.js"></script>
+    <script>
+        function log(msg) {
+            const div = document.getElementById('test-logs');
+            div.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+            div.scrollTop = div.scrollHeight;
+            console.log(msg);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const container = document.getElementById('import-container');
+
+            const sdk = ImportSDK.init(container, {
+                apiEndpoint: 'http://localhost:3011/geored/bin/service/import',
+                chunkSize: 100,
+                locale: 'fr',
+                translations: {
+                    fr: {
+                        uploadPrompt: "Cliquez pour télécharger ou glissez-déposez",
+                        uploadHint: "Fichiers CSV uniquement",
+                        checkFile: "Vérifier le fichier",
+                        startImport: "Démarrer l'importation",
+                        importing: "Importation...",
+                        checking: "Vérification...",
+                        progressTitle: "Progression",
+                        importProgress: "Progression de l'importation",
+                        validationProgress: "Progression de la validation",
+                        success: "Succès",
+                        errors: "Erreurs",
+                        total: "Total",
+                        logs: "Journaux",
+                        clearLogs: "Effacer",
+                        ready: "Prêt à démarrer...",
+                        fileSelected: "Fichier sélectionné : {filename} ({size} KB){mapping}",
+                        mappingInfo: " (Cartographie : {name})",
+                        fileRemoved: "Fichier supprimé.",
+                        logsCleared: "Journaux effacés...",
+                        parsingComplete: "Analyse terminée. Finalisation...",
+                        importFinished: "Importation terminée.",
+                        validationFinished: "Validation terminée.",
+                        errorCsvOnly: "Veuillez télécharger un fichier CSV.",
+                        usingMapping: "Utilisation de la cartographie : {name}",
+                        parsingError: "Erreur d'analyse : {message}",
+                        validationError: "Erreur de validation : {error}",
+                        networkError: "Erreur réseau : {message}",
+                        serverError: "Erreur serveur : {status} {statusText}",
+                        batchValidationFailed: "Échec de la validation du lot : {status}",
+                        handlerError: "Erreur du gestionnaire : {message}",
+                        invalidHandlerResponse: "Réponse invalide du gestionnaire, utilisation des valeurs par défaut",
+                        sendHandlerError: "Erreur du gestionnaire d'envoi : {message}"
+                    }
+                },
+                onProgress: (stats) => {
+                    log(`Progress: ${stats.successCount} success, ${stats.errorCount} errors`);
+                },
+                onComplete: (stats) => {
+                    log('Process Complete!');
+                    log(JSON.stringify(stats));
+                }
+            });
+
+            // Auto-start with URL
+            log('Fetching test.csv...');
+            fetch('test.csv')
+                .then(response => response.blob())
+                .then(blob => {
+                    const file = new File([blob], 'test.csv', { type: 'text/csv' });
+                    log('File loaded. Selecting file...');
+                    sdk.handleFileSelect(file);
+                })
+                .catch(err => log('Error loading file: ' + err));
+        });
+    </script>
+</body>
+
+</html>
