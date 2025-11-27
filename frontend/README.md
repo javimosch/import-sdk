@@ -52,6 +52,8 @@ A lightweight, reusable JavaScript library for importing CSV files in chunks to 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `chunkSize` | number | `100` | Number of rows per chunk |
+| `concurrency` | `number` | `1` | Number of chunks to send in parallel. |
+| `waitBetweenChunks` | `number` | `0` | Delay in milliseconds between chunk batches. |
 | `updateByTankNumber` | boolean | `false` | Update existing records by tank number |
 | `fieldMapping` | object | `{}` | Map CSV column names to API field names |
 | `transformers` | object | `{}` | Custom transformation functions for fields |
@@ -60,6 +62,21 @@ A lightweight, reusable JavaScript library for importing CSV files in chunks to 
 | `onProgress` | function | `null` | Callback for progress updates |
 | `onComplete` | function | `null` | Callback when import completes |
 | `onError` | function | `null` | Callback for individual errors |
+
+### Concurrency & Flow Control
+
+You can control the speed and load of the import process using `concurrency` and `waitBetweenChunks`.
+
+```javascript
+ImportSDK.init(container, {
+    chunkSize: 100,
+    concurrency: 5, // Send 5 chunks (500 records total) in parallel
+    waitBetweenChunks: 1000 // Wait 1 second after each batch of 5 chunks
+});
+```
+
+- **Concurrency**: The SDK will take `concurrency` chunks from the buffer and send them simultaneously using `Promise.all`.
+- **Wait Time**: After a batch of parallel requests completes, the SDK will wait for `waitBetweenChunks` milliseconds before processing the next batch.
 
 ## Custom Send Handler
 

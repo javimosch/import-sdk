@@ -30,6 +30,8 @@ class ImportSDK {
         this.config = {
             apiEndpoint: config.apiEndpoint || 'http://localhost:3000/api/import',
             chunkSize: config.chunkSize || 100,
+            concurrency: config.concurrency || 1,
+            waitBetweenChunks: config.waitBetweenChunks || 0,
             updateByTankNumber: config.updateByTankNumber || false,
             fieldMapping: config.fieldMapping || {},
             transformers: config.transformers || {},
@@ -282,7 +284,10 @@ class ImportSDK {
             complete: async () => {
                 this.log('Parsing complete. Finishing up...');
                 if (this.rowBuffer.length > 0) {
-                    await this.sendBatch(this.rowBuffer);
+                    // Send remaining rows
+                    const result = await this.sendBatch(this.rowBuffer);
+                    this.handleBatchResult(result);
+                    this.rowBuffer = [];
                 }
                 this.finishImport();
             },
@@ -296,9 +301,32 @@ class ImportSDK {
     async processRows(newRows, parser) {
         this.rowBuffer.push(...newRows);
 
+        // While we have enough data for at least one batch
         while (this.rowBuffer.length >= this.config.chunkSize) {
-            const batch = this.rowBuffer.splice(0, this.config.chunkSize);
-            await this.sendBatch(batch);
+            const batchesToSend = [];
+            
+            // Prepare up to 'concurrency' batches
+            for (let i = 0; i < this.config.concurrency; i++) {
+                if (this.rowBuffer.length >= this.config.chunkSize) {
+                    const batch = this.rowBuffer.splice(0, this.config.chunkSize);
+                    batchesToSend.push(batch);
+                } else {
+                    break;
+                }
+            }
+
+            if (batchesToSend.length > 0) {
+                // Send batches in parallel
+                const results = await Promise.all(batchesToSend.map(batch => this.sendBatch(batch)));
+                
+                // Process results
+                results.forEach(result => this.handleBatchResult(result));
+
+                // Wait if configured and we still have data to process (or just wait between parallel bursts)
+                if (this.config.waitBetweenChunks > 0) {
+                    await new Promise(resolve => setTimeout(resolve, this.config.waitBetweenChunks));
+                }
+            }
         }
     }
 
@@ -379,16 +407,13 @@ class ImportSDK {
 
     async sendBatch(batch) {
         try {
-            const transformedBatch = batch.map(row => this.transformRow(row));
-
             // Use custom send handler if provided, otherwise use default
             const sendHandler = this.config.sendHandler || this.defaultSendHandler.bind(this);
             
             let result;
             try {
-                result = await sendHandler(transformedBatch, this.config);
+                result = await sendHandler(batch, this.config);
             } catch (handlerError) {
-                this.log(`Send handler error: ${handlerError.message}`, 'error');
                 // Safe default on handler error
                 result = {
                     success: 0,
@@ -401,35 +426,37 @@ class ImportSDK {
 
             // Validate result structure and apply safe defaults
             if (!result || typeof result !== 'object') {
-                this.log('Invalid send handler response, using safe defaults', 'error');
                 result = { success: 0, errors: [] };
             }
+            if (typeof result.success !== 'number') result.success = 0;
+            if (!Array.isArray(result.errors)) result.errors = [];
 
-            const successCount = typeof result.success === 'number' ? result.success : 0;
-            const errors = Array.isArray(result.errors) ? result.errors : [];
-
-            // Update counts
-            this.state.successCount += successCount;
-            this.state.errorCount += errors.length;
-
-            // Log errors
-            errors.forEach(err => {
-                const message = err.message || 'Unknown error';
-                const tankNumber = err.tankNumber || err.data?.tankNumber || 'N/A';
-                this.log(`Error (Tank: ${tankNumber}): ${message}`, 'error');
-                
-                if (this.config.onError) {
-                    this.config.onError(err);
-                }
-            });
+            return result;
 
         } catch (err) {
             // Network or unexpected error
-            this.state.errorCount += batch.length;
-            this.log(`Network error: ${err.message}`, 'error');
+            return {
+                success: 0,
+                errors: batch.map(() => ({
+                    message: `Network error: ${err.message}`,
+                    data: null
+                }))
+            };
         }
+    }
 
-        this.state.totalCount += batch.length;
+    handleBatchResult(result) {
+        this.state.successCount += result.success;
+        this.state.errorCount += result.errors.length;
+        this.state.totalCount += (result.success + result.errors.length);
+
+        result.errors.forEach(err => {
+            this.log(`Error: ${err.message}`, 'error');
+            if (this.config.onError) {
+                this.config.onError(err);
+            }
+        });
+
         this.updateStats();
 
         if (this.config.onProgress) {
