@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Export Fix Test</title>
+    <link rel="stylesheet" href="frontend/import-ui.css">
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            background: #f0f2f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .info {
+            background: #d1ecf1;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border-left: 4px solid #17a2b8;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 10px;
+            border-radius: 4px;
+            background: #f8f9fa;
+        }
+        .error { background: #f8d7da; color: #721c24; }
+        .success { background: #d4edda; color: #155724; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Export Fix Test</h1>
+        
+        <div class="info">
+            <h3>Test Scenario</h3>
+            <p>This test creates duplicate tank numbers to trigger validation errors and tests the export functionality.</p>
+            <p><strong>Expected:</strong> Proper CSV format without [object Object] in exported files</p>
+        </div>
+
+        <div id="status" class="status">Ready to test...</div>
+        
+        <div id="import-container"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="frontend/import-sdk.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const container = document.getElementById('import-container');
+            const status = document.getElementById('status');
+
+            // Create test CSV with duplicate tank numbers to trigger errors
+            const testCsvData = `tankNumber,typeId,city,latitude,longitude
+TANK_000001,1,Paris,48.8566,2.3522
+TANK_000001,2,Lyon,45.7640,4.8357
+TANK_000002,3,Marseille,43.2965,5.3698
+TANK_000002,1,Bordeaux,44.8378,-0.5792
+TANK_000003,2,Lille,50.6292,3.0573`;
+
+            const sdk = ImportSDK.init(container, {
+                apiEndpoint: 'http://localhost:3011/geored/bin/service/import',
+                chunkSize: 5,
+                resultExport: ['success', 'errors', 'filtered', 'logs'],
+                
+                onProgress: (stats) => {
+                    status.innerHTML = `Processing... Success: ${stats.successCount}, Errors: ${stats.errorCount}, Total: ${stats.totalCount}`;
+                },
+                
+                onComplete: (stats) => {
+                    status.className = 'status success';
+                    status.innerHTML = `
+                        <strong>Import Complete!</strong><br>
+                        Success: ${stats.successCount}, Errors: ${stats.errorCount}, Total: ${stats.totalCount}<br>
+                        <em>Check the exported CSV files - they should NOT contain [object Object]</em>
+                    `;
+                },
+                
+                onError: (err) => {
+                    console.log('Error captured:', err);
+                }
+            });
+
+            // Create and load test file
+            const blob = new Blob([testCsvData], { type: 'text/csv' });
+            const file = new File([blob], 'test-duplicates.csv', { type: 'text/csv' });
+            
+            status.innerHTML = 'Test file created with duplicate tank numbers...';
+            
+            // Auto-load the test file
+            setTimeout(() => {
+                sdk.handleFileSelect(file);
+                status.innerHTML = 'Test file loaded. Click "Start Import" to begin testing.';
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

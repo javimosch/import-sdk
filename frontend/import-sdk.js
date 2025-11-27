@@ -445,10 +445,19 @@ class ImportSDK {
                     this.state.successRows.push(transformed);
                 }
             } else {
-                // Invalid row
+                // Invalid row - store only if resultExport includes 'errors'
                 this.state.errorCount++;
                 this.state.totalCount++;
-                this.state.errorRows.push({ ...transformed, _error: validation.error });
+                
+                if (this.config.resultExport.includes('errors')) {
+                    const errorRow = {
+                        ...transformed,
+                        _error: validation.error,
+                        _errorType: 'client-validation'
+                    };
+                    this.state.errorRows.push(errorRow);
+                }
+                
                 this.log(this.t('validationError', { error: validation.error }), 'error');
             }
         }
@@ -666,7 +675,28 @@ class ImportSDK {
         // Store error rows (if resultExport includes 'errors')
         if (this.config.resultExport.includes('errors')) {
             result.errors.forEach(err => {
-                this.state.errorRows.push({ ...err.data, _error: err.message });
+                // Extract the bin data properly, handling nested objects
+                let binData = {};
+                if (err.data && err.data.bin) {
+                    // Copy only the primitive values from the bin object
+                    binData = { ...err.data.bin };
+                    // Remove the nested id if it exists and is null
+                    if (binData.id === null) {
+                        delete binData.id;
+                    }
+                } else if (err.data) {
+                    // Fallback: try to use err.data directly but filter out complex objects
+                    binData = { ...err.data };
+                }
+                
+                // Add error metadata
+                const errorRow = {
+                    ...binData,
+                    _error: err.message,
+                    _errorType: 'validation'
+                };
+                
+                this.state.errorRows.push(errorRow);
                 this.log(`Error: ${err.message}`, 'error');
                 if (this.config.onError) {
                     this.config.onError(err);
@@ -800,19 +830,68 @@ class ImportSDK {
     }
 
     exportErrors() {
-        const csv = Papa.unparse(this.state.errorRows);
+        // Clean up error rows for export - ensure all values are serializable
+        const cleanErrorRows = this.state.errorRows.map(row => {
+            const cleanRow = {};
+            Object.keys(row).forEach(key => {
+                const value = row[key];
+                // Convert complex objects to strings, handle null/undefined
+                if (value === null || value === undefined) {
+                    cleanRow[key] = '';
+                } else if (typeof value === 'object') {
+                    cleanRow[key] = JSON.stringify(value);
+                } else {
+                    cleanRow[key] = String(value);
+                }
+            });
+            return cleanRow;
+        });
+        
+        const csv = Papa.unparse(cleanErrorRows);
         this.downloadFile(csv, 'import-errors.csv', 'text/csv');
         this.log('Downloaded errors CSV', 'success');
     }
 
     exportSuccess() {
-        const csv = Papa.unparse(this.state.successRows);
+        // Clean up success rows for export
+        const cleanSuccessRows = this.state.successRows.map(row => {
+            const cleanRow = {};
+            Object.keys(row).forEach(key => {
+                const value = row[key];
+                if (value === null || value === undefined) {
+                    cleanRow[key] = '';
+                } else if (typeof value === 'object') {
+                    cleanRow[key] = JSON.stringify(value);
+                } else {
+                    cleanRow[key] = String(value);
+                }
+            });
+            return cleanRow;
+        });
+        
+        const csv = Papa.unparse(cleanSuccessRows);
         this.downloadFile(csv, 'import-success.csv', 'text/csv');
         this.log('Downloaded success CSV', 'success');
     }
 
     exportFiltered() {
-        const csv = Papa.unparse(this.state.filteredRows);
+        // Clean up filtered rows for export
+        const cleanFilteredRows = this.state.filteredRows.map(row => {
+            const cleanRow = {};
+            Object.keys(row).forEach(key => {
+                const value = row[key];
+                if (value === null || value === undefined) {
+                    cleanRow[key] = '';
+                } else if (typeof value === 'object') {
+                    cleanRow[key] = JSON.stringify(value);
+                } else {
+                    cleanRow[key] = String(value);
+                }
+            });
+            return cleanRow;
+        });
+        
+        const csv = Papa.unparse(cleanFilteredRows);
         this.downloadFile(csv, 'import-filtered.csv', 'text/csv');
         this.log('Downloaded filtered CSV', 'success');
     }
