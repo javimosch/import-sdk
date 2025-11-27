@@ -55,9 +55,141 @@ A lightweight, reusable JavaScript library for importing CSV files in chunks to 
 | `updateByTankNumber` | boolean | `false` | Update existing records by tank number |
 | `fieldMapping` | object | `{}` | Map CSV column names to API field names |
 | `transformers` | object | `{}` | Custom transformation functions for fields |
+| `sendHandler` | function | `null` | Custom function to send batches to API |
+| `fileMappings` | array | `[]` | Array of file-specific mapping configurations |
 | `onProgress` | function | `null` | Callback for progress updates |
 | `onComplete` | function | `null` | Callback when import completes |
 | `onError` | function | `null` | Callback for individual errors |
+
+## Custom Send Handler
+
+Use a custom function to send data to your API. This is useful when you have an existing API wrapper or need custom request logic.
+
+**Handler Signature:**
+```javascript
+async (batch, config) => {
+    // batch: Array of transformed rows
+    // config: SDK configuration object
+    
+    // Must return: { success: number, errors: Array }
+    return {
+        success: 5,  // Number of successful imports
+        errors: [    // Array of error objects
+            {
+                message: 'Error description',
+                tankNumber: 'TANK_001',  // Optional
+                data: {...}              // Optional original data
+            }
+        ]
+    };
+}
+```
+
+**Example with API Wrapper:**
+```javascript
+ImportSDK.init(container, {
+    apiEndpoint: 'http://localhost:3000/api/import',
+    sendHandler: async (batch, config) => {
+        // Use your existing API wrapper
+        const result = await myApi.importBins({
+            data: batch,
+            endpoint: config.apiEndpoint,
+            updateMode: config.updateByTankNumber
+        });
+        
+        // Transform to SDK format
+        return {
+            success: result.successCount || 0,
+            errors: result.failures?.map(f => ({
+                message: f.error,
+                tankNumber: f.id,
+                data: f
+            })) || []
+        };
+    }
+});
+```
+
+**Example with Custom Fetch:**
+```javascript
+ImportSDK.init(container, {
+    apiEndpoint: 'http://localhost:3000/api/import',
+    sendHandler: async (batch, config) => {
+        const response = await fetch(config.apiEndpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${myToken}`
+            },
+            body: JSON.stringify({ items: batch })
+        });
+        
+        const data = await response.json();
+        
+        return {
+            success: data.imported || 0,
+            errors: data.errors || []
+        };
+    }
+});
+```
+
+## Multiple File Mappings
+
+Configure different field mappings for different CSV formats. The SDK automatically selects the appropriate mapping based on the filename.
+
+```javascript
+ImportSDK.init(container, {
+    apiEndpoint: 'http://localhost:3000/api/import',
+    
+    // File-specific mappings
+    fileMappings: [
+        {
+            name: 'Standard Format',
+            pattern: /test\.csv$/,  // RegExp or string
+            fieldMapping: {},
+            transformers: {}
+        },
+        {
+            name: 'Custom Format',
+            pattern: /test2\.csv$/,
+            fieldMapping: {
+                'Tank ID': 'tankNumber',
+                'Type': 'typeId',
+                'Location': 'city',
+                'Lat': 'latitude',
+                'Long': 'longitude'
+            },
+            transformers: {
+                typeId: (v) => parseInt(v),
+                latitude: (v) => parseFloat(v),
+                longitude: (v) => parseFloat(v)
+            }
+        },
+        {
+            name: 'Legacy Format',
+            pattern: 'legacy',  // Matches any filename containing 'legacy'
+            fieldMapping: {
+                'ContainerID': 'tankNumber',
+                'BinType': 'typeId'
+            },
+            transformers: {}
+        }
+    ],
+    
+    // Fallback mapping (used if no pattern matches)
+    fieldMapping: {},
+    transformers: {}
+});
+```
+
+**How it works:**
+1. User selects a file
+2. SDK checks `fileMappings` array for matching pattern
+3. First matching mapping is used
+4. If no match, falls back to default `fieldMapping` and `transformers`
+5. Logs show which mapping was selected
+
 
 ## Field Mapping
 

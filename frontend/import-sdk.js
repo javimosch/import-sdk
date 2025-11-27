@@ -12,7 +12,15 @@
  *   },
  *   transformers: {
  *     typeId: (value) => parseInt(value)
- *   }
+ *   },
+ *   sendHandler: async (batch, config) => {
+ *     // Custom send logic
+ *     return { success: batch.length, errors: [] };
+ *   },
+ *   fileMappings: [
+ *     { pattern: /test\.csv$/, fieldMapping: {}, transformers: {} },
+ *     { pattern: /test2\.csv$/, fieldMapping: { 'Tank ID': 'tankNumber' } }
+ *   ]
  * });
  */
 
@@ -25,9 +33,17 @@ class ImportSDK {
             updateByTankNumber: config.updateByTankNumber || false,
             fieldMapping: config.fieldMapping || {},
             transformers: config.transformers || {},
+            sendHandler: config.sendHandler || null,
+            fileMappings: config.fileMappings || [],
             onProgress: config.onProgress || null,
             onComplete: config.onComplete || null,
             onError: config.onError || null
+        };
+
+        // Active file mapping (selected based on filename)
+        this.activeMapping = {
+            fieldMapping: this.config.fieldMapping,
+            transformers: this.config.transformers
         };
 
         this.state = {
@@ -164,12 +180,49 @@ class ImportSDK {
             return;
         }
 
+        // Select appropriate file mapping based on filename
+        this.selectFileMapping(file.name);
+
         this.state.selectedFile = file;
         document.getElementById('import-sdk-file-name').textContent = file.name;
         document.getElementById('import-sdk-file-info').style.display = 'flex';
         document.getElementById('import-sdk-upload-prompt').style.display = 'none';
         document.getElementById('import-sdk-start-btn').disabled = false;
-        this.log(`File selected: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`);
+        
+        const mappingInfo = this.activeMapping.name ? ` (Mapping: ${this.activeMapping.name})` : '';
+        this.log(`File selected: ${file.name} (${(file.size / 1024).toFixed(2)} KB)${mappingInfo}`);
+    }
+
+    selectFileMapping(filename) {
+        // Check if there are file mappings configured
+        if (this.config.fileMappings && this.config.fileMappings.length > 0) {
+            // Find matching mapping
+            const mapping = this.config.fileMappings.find(m => {
+                if (m.pattern instanceof RegExp) {
+                    return m.pattern.test(filename);
+                } else if (typeof m.pattern === 'string') {
+                    return filename.includes(m.pattern);
+                }
+                return false;
+            });
+
+            if (mapping) {
+                this.activeMapping = {
+                    name: mapping.name || 'Custom',
+                    fieldMapping: mapping.fieldMapping || {},
+                    transformers: mapping.transformers || {}
+                };
+                this.log(`Using mapping: ${this.activeMapping.name}`);
+                return;
+            }
+        }
+
+        // Fallback to default mapping
+        this.activeMapping = {
+            name: null,
+            fieldMapping: this.config.fieldMapping,
+            transformers: this.config.transformers
+        };
     }
 
     handleFileRemove() {
@@ -252,14 +305,14 @@ class ImportSDK {
     transformRow(row) {
         const transformed = {};
 
-        // Apply field mapping
+        // Apply field mapping from active mapping
         Object.keys(row).forEach(key => {
-            const mappedKey = this.config.fieldMapping[key] || key;
+            const mappedKey = this.activeMapping.fieldMapping[key] || key;
             let value = row[key];
 
-            // Apply transformer if exists
-            if (this.config.transformers[mappedKey]) {
-                value = this.config.transformers[mappedKey](value);
+            // Apply transformer if exists in active mapping
+            if (this.activeMapping.transformers[mappedKey]) {
+                value = this.activeMapping.transformers[mappedKey](value);
             }
 
             transformed[mappedKey] = value;
@@ -268,46 +321,110 @@ class ImportSDK {
         return transformed;
     }
 
+    /**
+     * Default send handler using fetch API
+     * @param {Array} batch - Transformed batch of rows
+     * @param {Object} config - SDK configuration
+     * @returns {Promise<{success: number, errors: Array}>}
+     */
+    async defaultSendHandler(batch, config) {
+        const payload = {
+            bins: batch,
+            updateByTankNumber: config.updateByTankNumber
+        };
+
+        const response = await fetch(config.apiEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+        const result = { success: 0, errors: [] };
+
+        if (response.ok || response.status === 422) {
+            if (data.bins && Array.isArray(data.bins)) {
+                data.bins.forEach(res => {
+                    if (res.error) {
+                        result.errors.push({
+                            tankNumber: res.bin?.tankNumber || 'N/A',
+                            message: res.errorMessage,
+                            data: res
+                        });
+                    } else {
+                        result.success++;
+                    }
+                });
+            } else {
+                // Fallback if response structure is different
+                if (response.ok) {
+                    result.success = batch.length;
+                } else {
+                    result.errors = batch.map((_, i) => ({
+                        message: `Batch validation failed: ${response.status}`,
+                        data: null
+                    }));
+                }
+            }
+        } else {
+            // Server error
+            result.errors = batch.map((_, i) => ({
+                message: `Server error: ${response.status} ${response.statusText}`,
+                data: null
+            }));
+        }
+
+        return result;
+    }
+
     async sendBatch(batch) {
         try {
             const transformedBatch = batch.map(row => this.transformRow(row));
 
-            const payload = {
-                bins: transformedBatch,
-                updateByTankNumber: this.config.updateByTankNumber
-            };
-
-            const response = await fetch(this.config.apiEndpoint, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            const data = await response.json();
-
-            if (response.ok || response.status === 422) {
-                if (data.bins) {
-                    data.bins.forEach(res => {
-                        if (res.error) {
-                            this.state.errorCount++;
-                            this.log(`Error (Tank: ${res.bin?.tankNumber || 'N/A'}): ${res.errorMessage}`, 'error');
-                            if (this.config.onError) {
-                                this.config.onError(res);
-                            }
-                        } else {
-                            this.state.successCount++;
-                        }
-                    });
-                } else {
-                    if (response.ok) this.state.successCount += batch.length;
-                    else this.state.errorCount += batch.length;
-                }
-            } else {
-                this.state.errorCount += batch.length;
-                this.log(`Batch failed: ${response.status} ${response.statusText}`, 'error');
+            // Use custom send handler if provided, otherwise use default
+            const sendHandler = this.config.sendHandler || this.defaultSendHandler.bind(this);
+            
+            let result;
+            try {
+                result = await sendHandler(transformedBatch, this.config);
+            } catch (handlerError) {
+                this.log(`Send handler error: ${handlerError.message}`, 'error');
+                // Safe default on handler error
+                result = {
+                    success: 0,
+                    errors: batch.map(() => ({
+                        message: `Handler error: ${handlerError.message}`,
+                        data: null
+                    }))
+                };
             }
 
+            // Validate result structure and apply safe defaults
+            if (!result || typeof result !== 'object') {
+                this.log('Invalid send handler response, using safe defaults', 'error');
+                result = { success: 0, errors: [] };
+            }
+
+            const successCount = typeof result.success === 'number' ? result.success : 0;
+            const errors = Array.isArray(result.errors) ? result.errors : [];
+
+            // Update counts
+            this.state.successCount += successCount;
+            this.state.errorCount += errors.length;
+
+            // Log errors
+            errors.forEach(err => {
+                const message = err.message || 'Unknown error';
+                const tankNumber = err.tankNumber || err.data?.tankNumber || 'N/A';
+                this.log(`Error (Tank: ${tankNumber}): ${message}`, 'error');
+                
+                if (this.config.onError) {
+                    this.config.onError(err);
+                }
+            });
+
         } catch (err) {
+            // Network or unexpected error
             this.state.errorCount += batch.length;
             this.log(`Network error: ${err.message}`, 'error');
         }

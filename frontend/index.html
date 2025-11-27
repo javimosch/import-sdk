@@ -46,33 +46,78 @@
         // Initialize the SDK with configuration
         ImportSDK.init(document.getElementById('import-container'), {
             // API Configuration
-            apiEndpoint: 'http://localhost:3000/geored/bin/service/import',
+            apiEndpoint: 'http://localhost:3011/geored/bin/service/import',
             chunkSize: 100,
             updateByTankNumber: false,
 
-            // Field Mapping - Maps CSV columns to API fields
-            // Example: 'Tank ID' in CSV -> 'tankNumber' in API
-            fieldMapping: {
-                'Tank ID': 'tankNumber',
-                'Type': 'typeId',
-                'Location': 'city',
-                'Lat': 'latitude',
-                'Long': 'longitude'
-            },
-
-            // Transformers - Custom functions to transform field values
-            transformers: {
-                typeId: (value) => {
-                    // Convert string to integer
-                    return parseInt(value) || null;
+            // Multiple File Mappings - Auto-selects based on filename
+            fileMappings: [
+                {
+                    name: 'Standard Format',
+                    pattern: /test\.csv$/,
+                    fieldMapping: {},  // No mapping needed
+                    transformers: {
+                        typeId: (value) => parseInt(value) || null,
+                        latitude: (value) => parseFloat(value) || null,
+                        longitude: (value) => parseFloat(value) || null
+                    }
                 },
-                latitude: (value) => {
-                    return parseFloat(value) || null;
-                },
-                longitude: (value) => {
-                    return parseFloat(value) || null;
+                {
+                    name: 'Custom Format',
+                    pattern: /test2\.csv$/,
+                    fieldMapping: {
+                        'Tank ID': 'tankNumber',
+                        'Type': 'typeId',
+                        'Location': 'city',
+                        'Lat': 'latitude',
+                        'Long': 'longitude'
+                    },
+                    transformers: {
+                        typeId: (value) => parseInt(value) || null,
+                        latitude: (value) => parseFloat(value) || null,
+                        longitude: (value) => parseFloat(value) || null
+                    }
                 }
+            ],
+
+            // Fallback mapping (if no pattern matches)
+            fieldMapping: {},
+            transformers: {},
+
+            // Custom Send Handler (optional)
+            // Uncomment to use custom send logic instead of default fetch
+            /*
+            sendHandler: async (batch, config) => {
+                // Example: Use your own API wrapper
+                console.log('Sending batch:', batch);
+                
+                // Simulate API call
+                const response = await fetch(config.apiEndpoint, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        // Add custom headers here
+                        // 'Authorization': 'Bearer YOUR_TOKEN'
+                    },
+                    body: JSON.stringify({
+                        bins: batch,
+                        updateByTankNumber: config.updateByTankNumber
+                    })
+                });
+
+                const data = await response.json();
+                
+                // Transform to SDK format
+                return {
+                    success: data.bins?.filter(b => !b.error).length || 0,
+                    errors: data.bins?.filter(b => b.error).map(b => ({
+                        message: b.errorMessage,
+                        tankNumber: b.bin?.tankNumber,
+                        data: b
+                    })) || []
+                };
             },
+            */
 
             // Callbacks (optional)
             onProgress: (stats) => {
@@ -80,6 +125,7 @@
             },
             onComplete: (result) => {
                 console.log('Import complete:', result);
+                alert(`Import finished!\nSuccess: ${result.successCount}\nErrors: ${result.errorCount}`);
             },
             onError: (error) => {
                 console.error('Import error:', error);
