@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Import SDK - Custom Send Handler Test</title>
+    <link rel="stylesheet" href="import-ui.css">
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            background: #f0f2f5;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            margin-top: 0;
+            color: #1a1a1a;
+        }
+
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        .info h3 {
+            margin-top: 0;
+            color: #1976d2;
+        }
+
+        #test-logs {
+            margin-top: 20px;
+            padding: 10px;
+            background: #eee;
+            border: 1px solid #ccc;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        .log-entry {
+            margin: 2px 0;
+        }
+
+        .log-success {
+            color: #2e7d32;
+        }
+
+        .log-error {
+            color: #c62828;
+        }
+
+        .log-info {
+            color: #1565c0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Import SDK - Custom Send Handler Test</h1>
+
+        <div class="info">
+            <h3>Test Configuration</h3>
+            <p><strong>Custom Send Handler:</strong> Enabled</p>
+            <p><strong>Behavior:</strong> Simulates API calls with 500ms delay, logs all batches, and returns mock
+                success/error responses</p>
+            <p><strong>Test File:</strong> test.csv (5 records)</p>
+            <p><strong>Chunk Size:</strong> 2 records per batch</p>
+        </div>
+
+        <div id="import-container"></div>
+
+        <h3>Custom Handler Logs</h3>
+        <div id="test-logs"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="import-sdk.js"></script>
+    <script>
+        function log(msg, type = 'info') {
+            const div = document.getElementById('test-logs');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            div.appendChild(entry);
+            div.scrollTop = div.scrollHeight;
+            console.log(msg);
+        }
+
+        // Custom send handler that simulates API behavior
+        async function customSendHandler(batch, config) {
+            log(`📤 Custom handler received batch of ${batch.length} records`, 'info');
+
+            // Log the batch contents
+            batch.forEach((record, idx) => {
+                log(`  Record ${idx + 1}: Tank ${record.tankNumber} (Type: ${record.typeId})`, 'info');
+            });
+
+            // Simulate network delay
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // Simulate some validation logic
+            const result = {
+                success: 0,
+                errors: []
+            };
+
+            batch.forEach((record, idx) => {
+                // Simulate: reject records with typeId = 3 (for testing)
+                if (record.typeId === 3) {
+                    result.errors.push({
+                        tankNumber: record.tankNumber,
+                        message: `Custom validation failed: Type ${record.typeId} not allowed`,
+                        data: record
+                    });
+                    log(`  ❌ Rejected: ${record.tankNumber} (Type ${record.typeId})`, 'error');
+                } else {
+                    result.success++;
+                    log(`  ✅ Accepted: ${record.tankNumber}`, 'success');
+                }
+            });
+
+            log(`📥 Custom handler returning: ${result.success} success, ${result.errors.length} errors`, 'info');
+            log('─'.repeat(80), 'info');
+
+            return result;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const container = document.getElementById('import-container');
+
+            log('🚀 Initializing ImportSDK with custom send handler...', 'info');
+
+            const sdk = ImportSDK.init(container, {
+                apiEndpoint: 'http://localhost:3011/geored/bin/service/import', // Not used with custom handler
+                chunkSize: 2, // Small chunks to see multiple batches
+
+                // Custom send handler
+                sendHandler: customSendHandler,
+
+                onProgress: (stats) => {
+                    log(`📊 Progress Update: ${stats.successCount} success, ${stats.errorCount} errors, ${stats.totalCount} total`, 'info');
+                },
+
+                onComplete: (stats) => {
+                    log('🎉 Import Complete!', 'success');
+                    log(`Final Stats: ${stats.successCount} success, ${stats.errorCount} errors, ${stats.totalCount} total`, 'success');
+                },
+
+                onError: (err) => {
+                    log(`⚠️ Error callback: ${err.message}`, 'error');
+                }
+            });
+
+            // Auto-load test file
+            log('📂 Loading test.csv...', 'info');
+            fetch('test.csv')
+                .then(response => response.blob())
+                .then(blob => {
+                    const file = new File([blob], 'test.csv', { type: 'text/csv' });
+                    log('✅ File loaded successfully', 'success');
+                    log('─'.repeat(80), 'info');
+                    sdk.handleFileSelect(file);
+                })
+                .catch(err => log(`❌ Error loading file: ${err.message}`, 'error'));
+        });
+    </script>
+</body>
+
+</html>
