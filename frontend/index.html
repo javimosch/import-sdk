@@ -50,6 +50,13 @@
             chunkSize: 100,
             updateByTankNumber: false,
 
+            // Enable metrics backend
+            metricsBackend: {
+                enabled: true,
+                baseURL: 'http://localhost:3012',
+                includeProgress: true
+            },
+
             // Multiple File Mappings - Auto-selects based on filename
             fileMappings: [
                 {

@@ -148,6 +148,20 @@ class ImportSDK {
             onProgress: config.onProgress || null,
             onComplete: config.onComplete || null,
             onError: config.onError || null,
+            onMetrics: config.onMetrics || null,
+            // Metrics Backend Integration
+            metricsBackend: {
+                enabled: config.metricsBackend?.enabled || false,
+                baseURL: config.metricsBackend?.baseURL || 'http://localhost:3012',
+                endpoints: {
+                    metrics: '/api/import/metrics',
+                    progress: '/api/import/progress',
+                    audit: '/api/audit/log'
+                },
+                sessionId: config.metricsBackend?.sessionId || this.generateSessionId(),
+                includeProgress: config.metricsBackend?.includeProgress !== false,
+                ...config.metricsBackend
+            },
             // CSV Normalization Layer
             csvNormalization: {
                 enabled: config.csvNormalization?.enabled !== false, // Default: true
@@ -223,6 +237,69 @@ class ImportSDK {
             filteredRows: []
         };
 
+        // Initialize execution metrics
+        this.metrics = {
+            // Timing metrics
+            startTime: null,
+            endTime: null,
+            totalDuration: 0,
+            parseStartTime: null,
+            parseEndTime: null,
+            parseDuration: 0,
+            normalizationTime: 0,
+            
+            // Row processing metrics
+            rowProcessingTimes: [],
+            avgRowProcessingTime: 0,
+            maxRowProcessingTime: 0,
+            minRowProcessingTime: Infinity,
+            totalRowsProcessed: 0,
+            
+            // Chunk processing metrics
+            chunkTimes: [],
+            avgChunkLatency: 0,
+            maxChunkLatency: 0,
+            minChunkLatency: Infinity,
+            totalChunks: 0,
+            chunkSizes: [],
+            
+            // Concurrency metrics
+            activeBatches: 0,
+            peakConcurrency: 0,
+            concurrencyHistory: [],
+            concurrencyTimeline: [],
+            
+            // Network/API metrics
+            apiCalls: 0,
+            apiRetries: 0,
+            apiFailures: 0,
+            apiSuccesses: 0,
+            totalApiTime: 0,
+            avgApiLatency: 0,
+            apiLatencies: [],
+            
+            // Performance estimates
+            memoryUsageEstimate: 0,
+            cpuLoadEstimate: 0,
+            rowsPerSecond: 0,
+            throughput: 0,
+            efficiency: 0,
+            
+            // Plugin metrics
+            pluginExecutionTimes: {},
+            pluginCallCounts: {},
+            
+            // Error metrics
+            validationTime: 0,
+            transformTime: 0,
+            filterTime: 0,
+            
+            // File processing metrics
+            fileSize: 0,
+            estimatedRows: 0,
+            actualRows: 0
+        };
+
         this.rowBuffer = [];
         
         // Initialize plugins
@@ -245,6 +322,98 @@ class ImportSDK {
         
         this.render();
         this.attachEventListeners();
+    }
+
+    /**
+     * Generate a unique session ID
+     * @returns {string} - Unique session identifier
+     */
+    generateSessionId() {
+        return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    }
+
+    /**
+     * Send data to metrics backend
+     * @param {string} endpoint - API endpoint
+     * @param {Object} data - Data to send
+     * @returns {Promise} - Fetch promise
+     */
+    async sendToMetricsBackend(endpoint, data) {
+        if (!this.config.metricsBackend.enabled) {
+            return Promise.resolve();
+        }
+
+        try {
+            const url = `${this.config.metricsBackend.baseURL}${endpoint}`;
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    ...data,
+                    sessionId: this.config.metricsBackend.sessionId,
+                    timestamp: new Date().toISOString()
+                })
+            });
+
+            if (!response.ok) {
+                console.warn(`Metrics backend error: ${response.status} ${response.statusText}`);
+            }
+
+            return response;
+        } catch (error) {
+            console.warn('Failed to send data to metrics backend:', error.message);
+            return Promise.resolve();
+        }
+    }
+
+    /**
+     * Send progress update to metrics backend
+     * @param {Object} stats - Current progress stats
+     */
+    async sendProgressUpdate(stats) {
+        if (!this.config.metricsBackend.enabled || !this.config.metricsBackend.includeProgress) {
+            return;
+        }
+
+        const currentMetrics = this.getMetrics();
+        await this.sendToMetricsBackend(this.config.metricsBackend.endpoints.progress, {
+            importId: this.currentImportId,
+            progress: {
+                percentage: (stats.totalCount / Math.max(1, this.metrics.estimatedRows)) * 100,
+                processedRows: stats.totalCount,
+                successCount: stats.successCount,
+                errorCount: stats.errorCount,
+                filteredCount: stats.filteredCount
+            },
+            metrics: {
+                rowsPerSecond: currentMetrics.rowsPerSecond,
+                avgRowProcessingTime: currentMetrics.avgRowProcessingTime,
+                memoryUsageEstimate: currentMetrics.memoryUsageEstimate,
+                activeBatches: currentMetrics.activeBatches
+            }
+        });
+    }
+
+    /**
+     * Send audit log to metrics backend
+     * @param {string} level - Log level (info, warning, error)
+     * @param {string} message - Log message
+     * @param {Object} data - Additional log data
+     */
+    async sendAuditLog(level, message, data = {}) {
+        if (!this.config.metricsBackend.enabled) {
+            return;
+        }
+
+        await this.sendToMetricsBackend(this.config.metricsBackend.endpoints.audit, {
+            level,
+            message,
+            type: 'import_operation',
+            importId: this.currentImportId,
+            data
+        });
     }
 
     /**
@@ -505,6 +674,365 @@ class ImportSDK {
     }
 
     /**
+     * Reset metrics for a new import
+     */
+    resetMetrics() {
+        this.metrics = {
+            ...this.metrics,
+            startTime: null,
+            endTime: null,
+            totalDuration: 0,
+            parseStartTime: null,
+            parseEndTime: null,
+            parseDuration: 0,
+            normalizationTime: 0,
+            rowProcessingTimes: [],
+            avgRowProcessingTime: 0,
+            maxRowProcessingTime: 0,
+            minRowProcessingTime: Infinity,
+            totalRowsProcessed: 0,
+            chunkTimes: [],
+            avgChunkLatency: 0,
+            maxChunkLatency: 0,
+            minChunkLatency: Infinity,
+            totalChunks: 0,
+            chunkSizes: [],
+            activeBatches: 0,
+            peakConcurrency: 0,
+            concurrencyHistory: [],
+            concurrencyTimeline: [],
+            apiCalls: 0,
+            apiRetries: 0,
+            apiFailures: 0,
+            apiSuccesses: 0,
+            totalApiTime: 0,
+            avgApiLatency: 0,
+            apiLatencies: [],
+            pluginExecutionTimes: {},
+            pluginCallCounts: {},
+            validationTime: 0,
+            transformTime: 0,
+            filterTime: 0,
+            fileSize: 0,
+            estimatedRows: 0,
+            actualRows: 0
+        };
+    }
+
+    /**
+     * Start timing for a specific operation
+     * @param {string} operation - Operation name
+     * @returns {function} - Function to call when operation completes
+     */
+    startTiming(operation) {
+        const startTime = performance.now();
+        
+        return (metadata = {}) => {
+            const duration = performance.now() - startTime;
+            this.recordTiming(operation, duration, metadata);
+            return duration;
+        };
+    }
+
+    /**
+     * Record timing for an operation
+     * @param {string} operation - Operation name
+     * @param {number} duration - Duration in milliseconds
+     * @param {Object} metadata - Additional metadata
+     */
+    recordTiming(operation, duration, metadata = {}) {
+        switch (operation) {
+            case 'rowProcessing':
+                this.metrics.rowProcessingTimes.push(duration);
+                this.metrics.totalRowsProcessed++;
+                this.updateRowMetrics();
+                break;
+                
+            case 'chunkProcessing':
+                this.metrics.chunkTimes.push(duration);
+                this.metrics.totalChunks++;
+                if (metadata.chunkSize) {
+                    this.metrics.chunkSizes.push(metadata.chunkSize);
+                }
+                this.updateChunkMetrics();
+                break;
+                
+            case 'apiCall':
+                this.metrics.apiLatencies.push(duration);
+                this.metrics.totalApiTime += duration;
+                this.metrics.apiCalls++;
+                if (metadata.success) {
+                    this.metrics.apiSuccesses++;
+                } else if (metadata.error) {
+                    this.metrics.apiFailures++;
+                }
+                this.updateApiMetrics();
+                break;
+                
+            case 'validation':
+                this.metrics.validationTime += duration;
+                break;
+                
+            case 'transform':
+                this.metrics.transformTime += duration;
+                break;
+                
+            case 'filter':
+                this.metrics.filterTime += duration;
+                break;
+                
+            case 'normalization':
+                this.metrics.normalizationTime = duration;
+                break;
+                
+            case 'parse':
+                this.metrics.parseDuration = duration;
+                break;
+        }
+        
+        // Record plugin execution times
+        if (metadata.plugin) {
+            if (!this.metrics.pluginExecutionTimes[metadata.plugin]) {
+                this.metrics.pluginExecutionTimes[metadata.plugin] = [];
+                this.metrics.pluginCallCounts[metadata.plugin] = 0;
+            }
+            this.metrics.pluginExecutionTimes[metadata.plugin].push(duration);
+            this.metrics.pluginCallCounts[metadata.plugin]++;
+        }
+    }
+
+    /**
+     * Update concurrency tracking
+     * @param {number} activeBatches - Current number of active batches
+     */
+    updateConcurrency(activeBatches) {
+        this.metrics.activeBatches = activeBatches;
+        this.metrics.peakConcurrency = Math.max(this.metrics.peakConcurrency, activeBatches);
+        
+        // Record concurrency timeline
+        this.metrics.concurrencyTimeline.push({
+            timestamp: performance.now() - this.metrics.startTime,
+            activeBatches: activeBatches
+        });
+        
+        // Keep history for the last 100 measurements
+        if (this.metrics.concurrencyHistory.length >= 100) {
+            this.metrics.concurrencyHistory.shift();
+        }
+        this.metrics.concurrencyHistory.push(activeBatches);
+    }
+
+    /**
+     * Update row processing metrics
+     * @private
+     */
+    updateRowMetrics() {
+        const times = this.metrics.rowProcessingTimes;
+        if (times.length > 0) {
+            this.metrics.avgRowProcessingTime = times.reduce((a, b) => a + b, 0) / times.length;
+            this.metrics.maxRowProcessingTime = Math.max(...times);
+            this.metrics.minRowProcessingTime = Math.min(...times);
+        }
+    }
+
+    /**
+     * Update chunk processing metrics
+     * @private
+     */
+    updateChunkMetrics() {
+        const times = this.metrics.chunkTimes;
+        if (times.length > 0) {
+            this.metrics.avgChunkLatency = times.reduce((a, b) => a + b, 0) / times.length;
+            this.metrics.maxChunkLatency = Math.max(...times);
+            this.metrics.minChunkLatency = Math.min(...times);
+        }
+    }
+
+    /**
+     * Update API metrics
+     * @private
+     */
+    updateApiMetrics() {
+        const latencies = this.metrics.apiLatencies;
+        if (latencies.length > 0) {
+            this.metrics.avgApiLatency = latencies.reduce((a, b) => a + b, 0) / latencies.length;
+        }
+    }
+
+    /**
+     * Estimate CPU load based on processing patterns
+     * @private
+     */
+    updateCPUEstimate() {
+        if (this.metrics.totalRowsProcessed === 0) return;
+        
+        const totalProcessingTime = this.metrics.transformTime + 
+                                  this.metrics.validationTime + 
+                                  this.metrics.filterTime;
+        
+        const elapsedTime = this.metrics.endTime ? 
+                           (this.metrics.endTime - this.metrics.startTime) : 
+                           (performance.now() - this.metrics.startTime);
+        
+        // Estimate CPU utilization as ratio of processing time to elapsed time
+        this.metrics.cpuLoadEstimate = Math.min(100, (totalProcessingTime / elapsedTime) * 100);
+    }
+
+    /**
+     * Update throughput metrics
+     * @private
+     */
+    updateThroughputMetrics() {
+        const elapsedTime = this.metrics.endTime ? 
+                           this.metrics.totalDuration : 
+                           (performance.now() - this.metrics.startTime);
+        
+        if (elapsedTime > 0) {
+            this.metrics.rowsPerSecond = (this.metrics.totalRowsProcessed / elapsedTime) * 1000;
+            
+            if (this.metrics.fileSize > 0) {
+                this.metrics.throughput = (this.metrics.fileSize / elapsedTime) * 1000; // bytes per second
+            }
+            
+            // Calculate efficiency (actual vs theoretical throughput)
+            const theoreticalRowsPerSecond = 1000 / (this.metrics.avgRowProcessingTime || 1);
+            this.metrics.efficiency = Math.min(100, (this.metrics.rowsPerSecond / theoreticalRowsPerSecond) * 100);
+        }
+    }
+
+    /**
+     * Estimate memory usage based on data size and operations
+     * @private
+     */
+    updateMemoryEstimate() {
+        let estimate = 0;
+        
+        // Base memory for file content
+        estimate += this.metrics.fileSize * 2; // Assuming UTF-16 encoding
+        
+        // Memory for row buffers (estimated)
+        const avgRowSize = this.metrics.fileSize / Math.max(1, this.metrics.actualRows);
+        estimate += this.rowBuffer.length * avgRowSize * 3; // Transformed rows take more space
+        
+        // Memory for result collections
+        estimate += this.state.successRows.length * avgRowSize;
+        estimate += this.state.errorRows.length * avgRowSize;
+        estimate += this.state.filteredRows.length * avgRowSize;
+        
+        this.metrics.memoryUsageEstimate = estimate;
+    }
+
+    /**
+     * Get comprehensive execution metrics
+     * @returns {Object} - Complete metrics object
+     */
+    getMetrics() {
+        // Update calculated metrics
+        this.updateCPUEstimate();
+        this.updateThroughputMetrics();
+        this.updateMemoryEstimate();
+        
+        // Calculate plugin metrics summaries
+        const pluginSummaries = {};
+        Object.keys(this.metrics.pluginExecutionTimes).forEach(plugin => {
+            const times = this.metrics.pluginExecutionTimes[plugin];
+            if (times.length > 0) {
+                pluginSummaries[plugin] = {
+                    totalTime: times.reduce((a, b) => a + b, 0),
+                    avgTime: times.reduce((a, b) => a + b, 0) / times.length,
+                    maxTime: Math.max(...times),
+                    minTime: Math.min(...times),
+                    callCount: this.metrics.pluginCallCounts[plugin] || 0
+                };
+            }
+        });
+        
+        return {
+            ...this.metrics,
+            pluginSummaries,
+            
+            // Convenience calculated fields
+            isComplete: !!this.metrics.endTime,
+            totalDurationSeconds: this.metrics.totalDuration / 1000,
+            successRate: this.state.totalCount > 0 ? (this.state.successCount / this.state.totalCount) * 100 : 0,
+            errorRate: this.state.totalCount > 0 ? (this.state.errorCount / this.state.totalCount) * 100 : 0,
+            filterRate: this.state.totalCount > 0 ? (this.state.filteredCount / this.state.totalCount) * 100 : 0,
+            
+            // Performance indicators
+            performanceScore: this.calculatePerformanceScore(),
+            bottlenecks: this.identifyBottlenecks()
+        };
+    }
+
+    /**
+     * Calculate overall performance score
+     * @private
+     * @returns {number} - Performance score 0-100
+     */
+    calculatePerformanceScore() {
+        let score = 100;
+        
+        // Penalize high error rates
+        const errorRate = this.state.totalCount > 0 ? (this.state.errorCount / this.state.totalCount) * 100 : 0;
+        if (errorRate > 10) score -= (errorRate - 10) * 2;
+        
+        // Penalize low efficiency
+        if (this.metrics.efficiency < 50) score -= (50 - this.metrics.efficiency);
+        
+        // Penalize high API failure rate
+        const apiFailureRate = this.metrics.apiCalls > 0 ? (this.metrics.apiFailures / this.metrics.apiCalls) * 100 : 0;
+        if (apiFailureRate > 5) score -= (apiFailureRate - 5) * 3;
+        
+        // Penalize high memory usage (relative to file size)
+        const memoryRatio = this.metrics.fileSize > 0 ? this.metrics.memoryUsageEstimate / this.metrics.fileSize : 1;
+        if (memoryRatio > 5) score -= (memoryRatio - 5) * 5;
+        
+        return Math.max(0, Math.min(100, score));
+    }
+
+    /**
+     * Identify performance bottlenecks
+     * @private
+     * @returns {Array} - Array of bottleneck descriptions
+     */
+    identifyBottlenecks() {
+        const bottlenecks = [];
+        
+        // Check for slow row processing
+        if (this.metrics.avgRowProcessingTime > 10) {
+            bottlenecks.push(`Slow row processing: ${this.metrics.avgRowProcessingTime.toFixed(2)}ms/row`);
+        }
+        
+        // Check for slow API calls
+        if (this.metrics.avgApiLatency > 1000) {
+            bottlenecks.push(`Slow API responses: ${this.metrics.avgApiLatency.toFixed(2)}ms average`);
+        }
+        
+        // Check for high validation time
+        const totalProcessingTime = this.metrics.transformTime + this.metrics.validationTime + this.metrics.filterTime;
+        if (totalProcessingTime > 0) {
+            const validationRatio = this.metrics.validationTime / totalProcessingTime;
+            if (validationRatio > 0.5) {
+                bottlenecks.push(`Validation overhead: ${(validationRatio * 100).toFixed(1)}% of processing time`);
+            }
+        }
+        
+        // Check for memory pressure
+        if (this.metrics.memoryUsageEstimate > 100 * 1024 * 1024) { // 100MB
+            bottlenecks.push(`High memory usage: ${(this.metrics.memoryUsageEstimate / 1024 / 1024).toFixed(1)}MB estimated`);
+        }
+        
+        // Check for low concurrency utilization
+        const avgConcurrency = this.metrics.concurrencyHistory.length > 0 ? 
+                              this.metrics.concurrencyHistory.reduce((a, b) => a + b, 0) / this.metrics.concurrencyHistory.length : 0;
+        if (avgConcurrency < this.config.concurrency * 0.7) {
+            bottlenecks.push(`Low concurrency utilization: ${avgConcurrency.toFixed(1)}/${this.config.concurrency} average`);
+        }
+        
+        return bottlenecks;
+    }
+
+    /**
      * Normalize CSV content to handle common issues in real-world files
      * @param {string} csvContent - Raw CSV content as string
      * @returns {object} - { content: normalizedContent, delimiter: detectedDelimiter, issues: [] }
@@ -525,7 +1053,7 @@ class ImportSDK {
                 '\uFEFF', // UTF-8 BOM
                 '\uFFFE', // UTF-16 BE BOM  
                 '\u0000\uFEFF', // UTF-16 LE BOM
-                '\uEF\uBB\uBF' // UTF-8 BOM as bytes
+                '\uEFBBBF' // UTF-8 BOM as bytes
             ];
             
             for (const bom of bomPatterns) {
@@ -724,6 +1252,21 @@ class ImportSDK {
         this.state.errorCount = 0;
         this.state.totalCount = 0;
         this.rowBuffer = [];
+        
+        // Initialize metrics for this import
+        this.resetMetrics();
+        this.metrics.startTime = performance.now();
+        this.metrics.fileSize = this.state.selectedFile.size;
+        this.metrics.estimatedRows = Math.max(1, Math.floor(this.metrics.fileSize / 100)); // rough estimate
+        
+        // Generate unique import ID and send initial audit log
+        this.currentImportId = this.generateSessionId();
+        this.sendAuditLog('info', `Import started: ${this.state.selectedFile.name}`, {
+            fileName: this.state.selectedFile.name,
+            fileSize: this.metrics.fileSize,
+            mode: mode,
+            estimatedRows: this.metrics.estimatedRows
+        });
 
         const startBtn = document.getElementById('import-sdk-start-btn');
         const checkBtn = document.getElementById('import-sdk-check-btn');
@@ -777,8 +1320,12 @@ class ImportSDK {
 
                 // Apply CSV normalization if enabled
                 if (this.config.csvNormalization.enabled) {
+                    const stopNormalizationTiming = this.startTiming('normalization');
                     const normalizationResult = this.normalizeCSV(csvContent);
+                    stopNormalizationTiming();
+                    
                     csvContent = normalizationResult.content;
+                    this.metrics.normalizationIssues = normalizationResult.issues;
                     
                     // Log normalization issues
                     if (normalizationResult.issues.length > 0) {
@@ -791,6 +1338,9 @@ class ImportSDK {
                     }
                 }
 
+                // Start parse timing
+                this.metrics.parseStartTime = performance.now();
+                
                 // Parse the normalized content
                 Papa.parse(csvContent, papaConfig);
                 
@@ -811,20 +1361,32 @@ class ImportSDK {
     async processRows(newRows, parser) {
         // Filter, Transform, and Validate rows
         for (const row of newRows) {
+            const stopRowTiming = this.startTiming('rowProcessing');
+            
             // 1. Apply filters first (before transform)
+            const stopFilterTiming = this.startTiming('filter');
             const filterResult = this.filterRow(row);
+            stopFilterTiming();
+            
             if (!filterResult.passed) {
                 this.state.filteredCount++;
                 this.state.filteredRows.push({ ...row, _filterReason: filterResult.reason });
                 this.log(this.t('rowFiltered', { reason: filterResult.reason }), 'info');
+                stopRowTiming();
                 continue; // Skip this row
             }
 
             // 2. Transform
+            const stopTransformTiming = this.startTiming('transform');
             const transformed = this.transformRow(row);
+            stopTransformTiming();
             
             // 3. Validate
+            const stopValidationTiming = this.startTiming('validation');
             const validation = this.validateRow(transformed);
+            stopValidationTiming();
+            
+            stopRowTiming();
 
             if (validation.isValid) {
                 if (this.state.mode === 'import') {
@@ -855,6 +1417,14 @@ class ImportSDK {
         
         // Update stats periodically
         this.updateStats();
+        
+        // Send progress update to metrics backend
+        this.sendProgressUpdate({
+            totalCount: this.state.totalCount,
+            successCount: this.state.successCount,
+            errorCount: this.state.errorCount,
+            filteredCount: this.state.filteredCount
+        });
 
         // If in check mode, we don't send batches
         if (this.state.mode === 'check') {
@@ -876,10 +1446,17 @@ class ImportSDK {
             }
 
             if (batchesToSend.length > 0) {
+                // Track concurrency
+                this.updateConcurrency(batchesToSend.length);
+                
                 // Send batches in parallel
-                const results = await Promise.all(batchesToSend.map(batch => 
-                    this.sendBatch(batch).then(result => ({ result, batch }))
-                ));
+                const results = await Promise.all(batchesToSend.map(batch => {
+                    const stopChunkTiming = this.startTiming('chunkProcessing');
+                    return this.sendBatch(batch).then(result => {
+                        stopChunkTiming({ chunkSize: batch.length });
+                        return { result, batch };
+                    });
+                }));
                 
                 // Process results
                 results.forEach(({ result, batch }) => this.handleBatchResult(result, batch));
@@ -1132,9 +1709,12 @@ class ImportSDK {
             const sendHandler = this.config.sendHandler || this.defaultSendHandler.bind(this);
             
             let result;
+            const stopApiTiming = this.startTiming('apiCall');
             try {
                 result = await sendHandler(processedBatch, this.config);
+                stopApiTiming({ success: true, batchSize: processedBatch.length });
             } catch (handlerError) {
+                stopApiTiming({ success: false, error: handlerError.message });
                 this.log(this.t('sendHandlerError', { message: handlerError.message }), 'error');
                 // Safe default on handler error
                 result = {
@@ -1292,13 +1872,30 @@ class ImportSDK {
             document.getElementById('import-sdk-export-actions').style.display = 'block';
         }
 
+        // Finalize metrics
+        this.metrics.endTime = performance.now();
+        this.metrics.totalDuration = this.metrics.endTime - this.metrics.startTime;
+        this.metrics.actualRows = this.state.totalCount + this.state.filteredCount;
+        
+        if (this.metrics.parseStartTime) {
+            this.metrics.parseEndTime = this.metrics.endTime;
+            this.recordTiming('parse', this.metrics.parseEndTime - this.metrics.parseStartTime);
+        }
+        
+        // Reset concurrency tracking
+        this.updateConcurrency(0);
+        
+        // Get final metrics
+        const finalMetrics = this.getMetrics();
+
         // Call plugin onComplete hooks
         const completionStats = {
             successCount: this.state.successCount,
             errorCount: this.state.errorCount,
             totalCount: this.state.totalCount,
             filteredCount: this.state.filteredCount,
-            logs: this.state.logs
+            logs: this.state.logs,
+            metrics: finalMetrics // Include metrics in completion stats
         };
 
         ImportSDK.plugins.forEach(plugin => {
@@ -1310,6 +1907,40 @@ class ImportSDK {
                 }
             }
         });
+
+        // Send final metrics to backend
+        this.sendToMetricsBackend(this.config.metricsBackend.endpoints.metrics, {
+            importId: this.currentImportId,
+            fileName: this.state.selectedFile?.name,
+            metrics: finalMetrics,
+            stats: {
+                totalCount: this.state.totalCount,
+                successCount: this.state.successCount,
+                errorCount: this.state.errorCount,
+                filteredCount: this.state.filteredCount
+            }
+        });
+
+        // Send completion audit log
+        this.sendAuditLog('info', `Import completed: ${this.state.selectedFile?.name}`, {
+            fileName: this.state.selectedFile?.name,
+            totalRows: this.state.totalCount,
+            successRows: this.state.successCount,
+            errorRows: this.state.errorCount,
+            filteredRows: this.state.filteredCount,
+            duration: finalMetrics.totalDurationSeconds,
+            throughput: finalMetrics.rowsPerSecond,
+            performanceScore: finalMetrics.performanceScore
+        });
+
+        // Call metrics callback if provided
+        if (this.config.onMetrics) {
+            try {
+                this.config.onMetrics(finalMetrics);
+            } catch (err) {
+                this.log(`Metrics callback error: ${err.message}`, 'error');
+            }
+        }
 
         if (this.config.onComplete) {
             this.config.onComplete(completionStats);
@@ -1453,4 +2084,9 @@ class ImportSDK {
 // Export for module systems
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = ImportSDK;
+}
+
+// Export for browser
+if (typeof window !== 'undefined') {
+    window.ImportSDK = ImportSDK;
 }
