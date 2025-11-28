@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Error - ImportSDK Metrics</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .fade-in { animation: fadeIn 0.6s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-base-100 min-h-screen">
+    <!-- Navigation -->
+    <div class="navbar bg-base-100 shadow-lg border-b border-base-200">
+        <div class="flex-1">
+            <a href="/" class="btn btn-ghost normal-case text-xl">
+                <div class="w-8 h-8 gradient-bg rounded-lg flex items-center justify-center text-white font-bold mr-2">📊</div>
+                ImportSDK Metrics
+            </a>
+        </div>
+        <div class="flex-none">
+            <ul class="menu menu-horizontal px-1">
+                <li><a href="/">Dashboard</a></li>
+                <li><a href="/imports">Imports</a></li>
+                <li><a href="/logs">Logs</a></li>
+            </ul>
+        </div>
+    </div>
+
+    <main class="container mx-auto px-4 py-6 max-w-7xl">
+        <div class="fade-in">
+            <div class="card bg-base-100 shadow-lg max-w-2xl mx-auto">
+                <div class="card-body text-center py-16">
+                    <div class="text-8xl mb-6">😕</div>
+                    <h1 class="text-4xl font-bold text-base-content mb-4">
+                        Oops! Something went wrong
+                    </h1>
+                    <p class="text-xl text-base-content/70 mb-8">
+                        <%= error || 'An unexpected error occurred' %>
+                    </p>
+                    
+                    <div class="space-y-4">
+                        <div class="flex gap-4 justify-center">
+                            <a href="/" class="btn btn-primary">
+                                🏠 Go Home
+                            </a>
+                            <button onclick="history.back()" class="btn btn-outline">
+                                ← Go Back
+                            </button>
+                            <button onclick="window.location.reload()" class="btn btn-outline">
+                                🔄 Retry
+                            </button>
+                        </div>
+                        
+                        <div class="text-sm text-base-content/50">
+                            <p>If this error persists, please check:</p>
+                            <ul class="list-disc list-inside mt-2 space-y-1">
+                                <li>The URL is correct</li>
+                                <li>The backend service is running</li>
+                                <li>Your network connection</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

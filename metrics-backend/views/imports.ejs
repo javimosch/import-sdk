@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Import History - ImportSDK Metrics</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .fade-in { animation: fadeIn 0.6s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-base-100 min-h-screen">
+    <!-- Navigation -->
+    <div class="navbar bg-base-100 shadow-lg border-b border-base-200">
+        <div class="flex-1">
+            <a href="/" class="btn btn-ghost normal-case text-xl">
+                <div class="w-8 h-8 gradient-bg rounded-lg flex items-center justify-center text-white font-bold mr-2">📊</div>
+                ImportSDK Metrics
+            </a>
+        </div>
+        <div class="flex-none">
+            <ul class="menu menu-horizontal px-1">
+                <li><a href="/">Dashboard</a></li>
+                <li><a href="/imports" class="active">Imports</a></li>
+                <li><a href="/logs">Logs</a></li>
+            </ul>
+        </div>
+    </div>
+
+    <main class="container mx-auto px-4 py-6 max-w-7xl">
+        <div class="fade-in">
+            <!-- Page Header -->
+            <div class="mb-8">
+                <h1 class="text-4xl font-bold text-base-content mb-2">📁 Import History</h1>
+                <p class="text-base-content/70 text-lg">Complete history of all import operations with detailed metrics</p>
+            </div>
+
+            <!-- Imports Table -->
+            <% if (imports.length === 0) { %>
+                <div class="card bg-base-100 shadow-lg">
+                    <div class="card-body text-center py-16">
+                        <div class="text-8xl opacity-20 mb-6">📂</div>
+                        <h3 class="text-2xl font-bold text-base-content/70 mb-4">No imports found</h3>
+                        <p class="text-base-content/50 mb-6">Import operations will appear here when the SDK sends metrics data</p>
+                        <div class="space-y-2 text-sm text-base-content/40">
+                            <p>💡 Make sure your ImportSDK is configured with metrics backend URL</p>
+                            <p>🔗 Backend URL: <code class="bg-base-200 px-2 py-1 rounded">http://localhost:3012</code></p>
+                        </div>
+                    </div>
+                </div>
+            <% } else { %>
+                <div class="card bg-base-100 shadow-lg">
+                    <div class="card-body p-0">
+                        <div class="overflow-x-auto">
+                            <table class="table table-zebra">
+                                <thead class="bg-base-200">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>File Details</th>
+                                        <th>Timestamp</th>
+                                        <th>Processing Stats</th>
+                                        <th>Performance</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% imports.forEach(function(imp, index) { %>
+                                        <tr class="hover">
+                                            <td class="text-xs text-base-content/50"><%= index + 1 %></td>
+                                            <td>
+                                                <div class="flex items-start gap-3">
+                                                    <div class="avatar placeholder">
+                                                        <div class="bg-primary text-primary-content rounded-full w-10">
+                                                            <span class="text-xs">📄</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="flex-1">
+                                                        <div class="font-semibold text-base-content">
+                                                            <%= imp.fileName || 'Unknown File' %>
+                                                        </div>
+                                                        <div class="text-xs text-base-content/60">
+                                                            ID: <%= imp.id %>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="text-sm"><%= new Date(imp.timestamp).toLocaleDateString() %></div>
+                                                <div class="text-xs text-base-content/60"><%= new Date(imp.timestamp).toLocaleTimeString() %></div>
+                                            </td>
+                                            <td>
+                                                <div class="space-y-1">
+                                                    <div class="flex items-center gap-2">
+                                                        <span class="text-xs text-base-content/60">Rows:</span>
+                                                        <span class="badge badge-outline badge-sm">
+                                                            <%= (imp.stats?.totalCount || 0).toLocaleString() %>
+                                                        </span>
+                                                    </div>
+                                                    <div class="flex items-center gap-2">
+                                                        <span class="text-xs text-base-content/60">Duration:</span>
+                                                        <span class="text-sm font-mono">
+                                                            <%= ((imp.metrics?.totalDurationSeconds || 0) < 60 ? 
+                                                                (imp.metrics?.totalDurationSeconds || 0).toFixed(1) + 's' : 
+                                                                Math.floor((imp.metrics?.totalDurationSeconds || 0) / 60) + 'm ' + 
+                                                                ((imp.metrics?.totalDurationSeconds || 0) % 60).toFixed(0) + 's') %>
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="space-y-2">
+                                                    <div class="flex items-center gap-2">
+                                                        <span class="text-xs text-base-content/60">Speed:</span>
+                                                        <span class="font-semibold text-accent">
+                                                            <%= (imp.metrics?.rowsPerSecond || 0).toFixed(1) %> rows/s
+                                                        </span>
+                                                    </div>
+                                                    <div class="flex items-center gap-2">
+                                                        <span class="text-xs text-base-content/60">Success:</span>
+                                                        <span class="text-success">
+                                                            <%= (((imp.stats?.successCount || 0) / Math.max(1, imp.stats?.totalCount || 1)) * 100).toFixed(1) %>%
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <a href="/imports/<%= imp.id %>" class="btn btn-primary btn-xs">
+                                                    View Details
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    <% }); %>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="mt-8">
+                    <div class="stats shadow w-full">
+                        <div class="stat">
+                            <div class="stat-title">Total Imports</div>
+                            <div class="stat-value text-primary"><%= imports.length %></div>
+                            <div class="stat-desc">All time</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-title">Total Rows Processed</div>
+                            <div class="stat-value text-secondary">
+                                <%= imports.reduce((sum, imp) => sum + (imp.stats?.totalCount || 0), 0).toLocaleString() %>
+                            </div>
+                            <div class="stat-desc">Across all imports</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-title">Average Throughput</div>
+                            <div class="stat-value text-accent">
+                                <%= imports.length > 0 ? (imports.reduce((sum, imp) => sum + (imp.metrics?.rowsPerSecond || 0), 0) / imports.length).toFixed(1) : '0' %>
+                            </div>
+                            <div class="stat-desc">rows per second</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-title">Success Rate</div>
+                            <div class="stat-value text-success">
+                                <% 
+                                const totalSuccess = imports.reduce((sum, imp) => sum + (imp.stats?.successCount || 0), 0);
+                                const totalRows = imports.reduce((sum, imp) => sum + (imp.stats?.totalCount || 0), 0);
+                                const successRate = totalRows > 0 ? (totalSuccess / totalRows * 100) : 0;
+                                %>
+                                <%= successRate.toFixed(1) %>%
+                            </div>
+                            <div class="stat-desc">Overall quality</div>
+                        </div>
+                    </div>
+                </div>
+            <% } %>
+        </div>
+    </main>
+
+    <script>
+        // Auto-refresh every 30 seconds
+        setTimeout(() => {
+            window.location.reload();
+        }, 30000);
+    </script>
+</body>
+</html>
