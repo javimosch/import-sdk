@@ -67,6 +67,7 @@ A lightweight, reusable JavaScript library for importing CSV files in chunks to 
 | `onProgress` | function | `null` | Callback for progress updates |
 | `onComplete` | function | `null` | Callback when import completes |
 | `onError` | function | `null` | Callback for individual errors |
+| `metricsBackend` | `object` | `null` | Configuration for metrics backend integration |
 
 ### Concurrency & Flow Control
 
@@ -165,6 +166,7 @@ Complete list of all configuration options available for `ImportSDK.init()`:
 | `onProgress` | `function` | `null` | Called after each chunk: `(stats) => {}` |
 | `onComplete` | `function` | `null` | Called when import finishes: `(result) => {}` |
 | `onError` | `function` | `null` | Called for each error: `(error) => {}` |
+| `onMetrics` | `function` | `null` | Called with detailed execution metrics: `(metrics) => {}` |
 
 ### Internationalization (i18n)
 
@@ -180,6 +182,92 @@ ImportSDK.init(container, {
             startImport: "Démarrer l'importation",
             // ... see defaultTranslations in source for all keys
         }
+    }
+});
+```
+
+## Metrics Backend Configuration
+
+Integrate with a metrics backend to capture and analyze import performance and audit logs.
+
+```javascript
+ImportSDK.init(container, {
+    // ...
+    metricsBackend: {
+        enabled: true,                       // Enable/disable metrics collection
+        baseURL: 'http://localhost:3012',    // Base URL of your metrics backend
+        sessionId: 'my-unique-session-id',   // Optional: Custom session ID for grouping metrics
+        includeProgress: true,               // Optional: Send progress updates to backend (default: true)
+        endpoints: {                         // Optional: Custom endpoint paths
+            metrics: '/api/import/metrics',
+            progress: '/api/import/progress',
+            audit: '/api/audit/log'
+        }
+    },
+    onMetrics: (metrics) => {
+        console.log('Metrics collected:', metrics);
+    }
+});
+```
+
+### Options for `metricsBackend`
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enabled` | `boolean` | `false` | Set to `true` to enable sending metrics to the backend. |
+| `baseURL` | `string` | `''` | The base URL of your metrics backend server. **Required if `enabled` is `true`.** |
+| `sessionId` | `string` | `Generated UUID` | A unique identifier for the current import session. If not provided, a UUID will be generated. |
+| `includeProgress` | `boolean` | `true` | If `true`, progress updates will be sent to the backend. |
+| `endpoints` | `object` | `{ metrics: '/api/metrics', progress: '/api/progress', audit: '/api/audit' }` | Custom endpoint paths for metrics, progress, and audit logs. |
+
+### Basic Metrics Backend Configuration Example:
+
+```javascript
+ImportSDK.init(container, {
+    apiEndpoint: 'http://localhost:3011/geored/bin/service/import',
+    
+    // Enable metrics backend
+    metricsBackend: {
+        enabled: true,
+        baseURL: 'http://localhost:3012',
+        includeProgress: true
+    },
+    
+    // Other configuration...
+    chunkSize: 50,
+    resultExport: ['success', 'errors', 'logs']
+});
+```
+
+### Advanced Configuration with Custom Session:
+
+```javascript
+ImportSDK.init(container, {
+    apiEndpoint: 'http://localhost:3011/geored/bin/service/import',
+    
+    // Advanced metrics backend configuration
+    metricsBackend: {
+        enabled: true,
+        baseURL: 'http://localhost:3012',
+        sessionId: 'custom-session-' + Date.now(),
+        includeProgress: true,
+        endpoints: {
+            metrics: '/api/import/metrics',
+            progress: '/api/import/progress',
+            audit: '/api/audit/log'
+        }
+    },
+    
+    // Enable comprehensive monitoring
+    resultExport: ['success', 'errors', 'filtered', 'logs'],
+    
+    onMetrics: (metrics) => {
+        console.log('📊 Import completed:', {
+            duration: metrics.totalDurationSeconds,
+            throughput: metrics.rowsPerSecond,
+            efficiency: metrics.efficiency,
+            performanceScore: metrics.performanceScore
+        });
     }
 });
 ```
@@ -962,6 +1050,261 @@ Plugins include comprehensive error handling:
 6. **Batch plugins** → `beforeSend()` → API call → `afterSend()`
 
 This system allows plugins to work together seamlessly while maintaining predictable processing order.
+
+## Import Execution Metrics
+
+Monitor and optimize import performance with comprehensive execution metrics that provide deep insights into every aspect of the import process.
+
+### Why Use Execution Metrics?
+
+- **Performance Optimization**: Identify bottlenecks and optimize import configuration
+- **Monitoring**: Track import performance in production environments
+- **Debugging**: Diagnose slow imports with detailed timing breakdowns
+- **Capacity Planning**: Understand resource usage and throughput patterns
+- **Quality Assurance**: Monitor error rates and processing efficiency
+
+### Available Metrics
+
+#### **Timing Metrics**
+| Metric | Description |
+|--------|-------------|
+| `totalDuration` | Complete import duration (milliseconds) |
+| `parseDuration` | CSV parsing time |
+| `normalizationTime` | CSV normalization processing time |
+| `avgRowProcessingTime` | Average time per row (transform + validate + filter) |
+| `maxRowProcessingTime` | Slowest single row processing time |
+| `avgChunkLatency` | Average time per batch/chunk |
+| `avgApiLatency` | Average API call response time |
+
+#### **Throughput Metrics**
+| Metric | Description |
+|--------|-------------|
+| `rowsPerSecond` | Processing rate (rows/second) |
+| `throughput` | Data processing rate (bytes/second) |
+| `efficiency` | Actual vs theoretical processing efficiency (%) |
+| `successRate` | Percentage of successfully processed rows |
+| `errorRate` | Percentage of rows with errors |
+
+#### **Concurrency Metrics**
+| Metric | Description |
+|--------|-------------|
+| `peakConcurrency` | Maximum simultaneous API calls |
+| `avgConcurrency` | Average concurrency utilization |
+| `concurrencyTimeline` | Timeline of concurrency changes |
+
+#### **Resource Metrics**
+| Metric | Description |
+|--------|-------------|
+| `memoryUsageEstimate` | Estimated memory usage (bytes) |
+| `cpuLoadEstimate` | Estimated CPU utilization (%) |
+| `apiCalls` | Total number of API requests |
+| `apiRetries` | Number of retry attempts |
+| `apiFailures` | Number of failed API calls |
+
+#### **Plugin Metrics**
+| Metric | Description |
+|--------|-------------|
+| `pluginSummaries` | Per-plugin execution time statistics |
+| `pluginCallCounts` | Number of times each plugin was executed |
+
+### Using Metrics
+
+#### **Basic Metrics Callback**
+```javascript
+ImportSDK.init(container, {
+    apiEndpoint: 'http://localhost:3000/api/import',
+    
+    onMetrics: (metrics) => {
+        console.log('Import Performance Summary:');
+        console.log(`Duration: ${metrics.totalDurationSeconds.toFixed(2)}s`);
+        console.log(`Throughput: ${metrics.rowsPerSecond.toFixed(1)} rows/sec`);
+        console.log(`Efficiency: ${metrics.efficiency.toFixed(1)}%`);
+        console.log(`Success Rate: ${metrics.successRate.toFixed(1)}%`);
+        
+        if (metrics.bottlenecks.length > 0) {
+            console.log('Bottlenecks:', metrics.bottlenecks);
+        }
+    }
+});
+```
+
+#### **Performance Monitoring**
+```javascript
+ImportSDK.init(container, {
+    apiEndpoint: 'http://localhost:3000/api/import',
+    
+    onProgress: (stats) => {
+        // Real-time metrics during import
+        const currentMetrics = sdk.getMetrics();
+        updateDashboard({
+            rowsPerSecond: currentMetrics.rowsPerSecond,
+            memoryUsage: currentMetrics.memoryUsageEstimate,
+            activeBatches: currentMetrics.activeBatches
+        });
+    },
+    
+    onMetrics: (finalMetrics) => {
+        // Send metrics to monitoring service
+        analytics.track('import_completed', {
+            duration: finalMetrics.totalDurationSeconds,
+            rows: finalMetrics.actualRows,
+            throughput: finalMetrics.rowsPerSecond,
+            efficiency: finalMetrics.efficiency,
+            errors: finalMetrics.errorRate,
+            performanceScore: finalMetrics.performanceScore
+        });
+        
+        // Alert on performance issues
+        if (finalMetrics.performanceScore < 70) {
+            alerting.notify('Poor import performance detected', {
+                score: finalMetrics.performanceScore,
+                bottlenecks: finalMetrics.bottlenecks
+            });
+        }
+    }
+});
+```
+
+#### **Optimization Analysis**
+```javascript
+onMetrics: (metrics) => {
+    console.log('📊 Performance Analysis:');
+    
+    // Timing breakdown
+    console.log(`⏱️ Timing:
+        Total: ${metrics.totalDurationSeconds.toFixed(2)}s
+        Parse: ${(metrics.parseDuration / 1000).toFixed(2)}s
+        Transform: ${(metrics.transformTime / 1000).toFixed(2)}s
+        Validation: ${(metrics.validationTime / 1000).toFixed(2)}s
+        API: ${(metrics.totalApiTime / 1000).toFixed(2)}s`);
+    
+    // Throughput analysis
+    console.log(`🚀 Throughput:
+        ${metrics.rowsPerSecond.toFixed(1)} rows/sec
+        ${(metrics.throughput / 1024).toFixed(1)} KB/sec
+        ${metrics.efficiency.toFixed(1)}% efficiency`);
+    
+    // Concurrency analysis
+    console.log(`⚡ Concurrency:
+        Peak: ${metrics.peakConcurrency} batches
+        Avg: ${(metrics.concurrencyHistory.reduce((a,b) => a+b, 0) / metrics.concurrencyHistory.length).toFixed(1)} batches
+        API Success: ${((metrics.apiSuccesses / metrics.apiCalls) * 100).toFixed(1)}%`);
+    
+    // Resource usage
+    console.log(`💾 Resources:
+        Memory: ${(metrics.memoryUsageEstimate / 1024 / 1024).toFixed(1)}MB
+        CPU: ${metrics.cpuLoadEstimate.toFixed(1)}%`);
+    
+    // Plugin performance
+    Object.entries(metrics.pluginSummaries).forEach(([name, stats]) => {
+        console.log(`🔧 Plugin ${name}: ${stats.avgTime.toFixed(2)}ms avg, ${stats.callCount} calls`);
+    });
+}
+```
+
+### Metrics Object Structure
+
+```javascript
+{
+    // Timing
+    totalDuration: 15423.5,           // Total time (ms)
+    parseDuration: 234.1,             // Parse time (ms)
+    normalizationTime: 12.3,          // Normalization time (ms)
+    avgRowProcessingTime: 2.1,        // Avg row processing (ms)
+    avgChunkLatency: 145.3,           // Avg batch latency (ms)
+    avgApiLatency: 89.2,              // Avg API response (ms)
+    
+    // Throughput
+    rowsPerSecond: 847.3,             // Processing rate
+    throughput: 156789,               // Bytes per second
+    efficiency: 87.4,                 // Processing efficiency %
+    
+    // Counts
+    totalRowsProcessed: 12500,        // Rows processed
+    apiCalls: 125,                    // Total API calls
+    apiSuccesses: 123,                // Successful API calls
+    apiFailures: 2,                   // Failed API calls
+    
+    // Concurrency
+    peakConcurrency: 4,               // Max simultaneous batches
+    activeBatches: 0,                 // Current active batches
+    concurrencyHistory: [0,1,2,3,4,3,2,1,0], // Concurrency timeline
+    
+    // Resources
+    memoryUsageEstimate: 52428800,    // Estimated memory (bytes)
+    cpuLoadEstimate: 23.4,            // Estimated CPU %
+    
+    // Quality
+    successRate: 94.2,                // Success rate %
+    errorRate: 5.8,                   // Error rate %
+    performanceScore: 86,             // Overall performance score
+    bottlenecks: [                    // Identified bottlenecks
+        "Slow API responses: 89.2ms average"
+    ],
+    
+    // Plugin metrics
+    pluginSummaries: {
+        dateNormalizer: {
+            totalTime: 234.5,          // Total execution time
+            avgTime: 1.87,             // Average call time
+            maxTime: 12.3,             // Longest call time
+            callCount: 125             // Number of calls
+        }
+    }
+}
+```
+
+### Performance Optimization Tips
+
+Based on metrics analysis:
+
+**High `avgRowProcessingTime`:**
+- Optimize transformers and validators
+- Reduce plugin complexity
+- Consider field-level caching
+
+**High `avgApiLatency`:**
+- Increase chunk size
+- Optimize API endpoint
+- Consider request batching
+
+**Low `efficiency`:**
+- Increase concurrency
+- Reduce wait between chunks
+- Optimize data structures
+
+**High `memoryUsageEstimate`:**
+- Disable unnecessary result exports
+- Reduce chunk size
+- Clear intermediate data
+
+**Low `peakConcurrency`:**
+- Check network limitations
+- Increase concurrency setting
+- Monitor API rate limits
+
+### Real-time Metrics Access
+
+```javascript
+// Get metrics during import
+const sdk = ImportSDK.init(container, config);
+
+// Access metrics anytime
+const currentMetrics = sdk.getMetrics();
+console.log(`Current throughput: ${currentMetrics.rowsPerSecond} rows/sec`);
+
+// Monitor progress with metrics
+setInterval(() => {
+    const metrics = sdk.getMetrics();
+    updateProgressBar({
+        progress: (metrics.totalRowsProcessed / metrics.estimatedRows) * 100,
+        throughput: metrics.rowsPerSecond,
+        memory: metrics.memoryUsageEstimate
+    });
+}, 1000);
+```
+
+The metrics system provides comprehensive insights to help optimize import performance and monitor production workloads effectively.
 
 ### Working with Filtered Data
 
