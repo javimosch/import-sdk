@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Metrics Backend Integration Test</title>
+    <link rel="stylesheet" href="import-ui.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+            background: #f5f7fa;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        .metrics-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 25px 0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .metrics-section h3 {
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .config-card {
+            background: white;
+            color: #2d3748;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #667eea;
+        }
+        
+        .config-card h4 {
+            margin-top: 0;
+            color: #667eea;
+        }
+        
+        .code-block {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin: 10px 0;
+            border: 1px solid #4a5568;
+        }
+        
+        .test-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 25px 0;
+        }
+        
+        .test-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            justify-content: center;
+        }
+        
+        .test-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .status-panel {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .backend-status {
+            background: #e3f2fd;
+            border: 1px solid #90caf9;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .metrics-log {
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        
+        .log-entry {
+            padding: 5px 0;
+            border-bottom: 1px solid #f1f3f4;
+        }
+        
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+        
+        .log-success { color: #28a745; }
+        .log-error { color: #dc3545; }
+        .log-info { color: #17a2b8; }
+        .log-progress { color: #6f42c1; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Metrics Backend Integration Test</h1>
+            <p>Test the ImportSDK integration with the metrics backend for monitoring and analytics</p>
+        </div>
+
+        <div class="metrics-section">
+            <h3><span>🎯</span> Metrics Backend Features</h3>
+            <div class="config-grid">
+                <div class="config-card">
+                    <h4>📈 Real-time Metrics</h4>
+                    <p>Comprehensive performance metrics sent to backend during import</p>
+                    <ul class="text-sm mt-2">
+                        <li>Processing speed and throughput</li>
+                        <li>Memory and CPU usage estimates</li>
+                        <li>API latency and concurrency</li>
+                        <li>Plugin execution times</li>
+                    </ul>
+                </div>
+                <div class="config-card">
+                    <h4>📝 Audit Logging</h4>
+                    <p>Detailed audit trail of all import operations</p>
+                    <ul class="text-sm mt-2">
+                        <li>Import start/completion events</li>
+                        <li>Error tracking and analysis</li>
+                        <li>Progress updates during processing</li>
+                        <li>System events and warnings</li>
+                    </ul>
+                </div>
+                <div class="config-card">
+                    <h4>📊 Dashboard Analytics</h4>
+                    <p>Visual monitoring dashboard with insights</p>
+                    <ul class="text-sm mt-2">
+                        <li>Performance trends over time</li>
+                        <li>Import volume and success rates</li>
+                        <li>Bottleneck identification</li>
+                        <li>Historical data analysis</li>
+                    </ul>
+                </div>
+                <div class="config-card">
+                    <h4>🔍 Detailed Reporting</h4>
+                    <p>Per-import detailed analysis and reports</p>
+                    <ul class="text-sm mt-2">
+                        <li>Complete metrics breakdown</li>
+                        <li>Performance scoring</li>
+                        <li>Optimization recommendations</li>
+                        <li>Export capabilities</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Backend Status Check -->
+        <div class="backend-status">
+            <h3>🔌 Backend Connection Status</h3>
+            <div id="backend-status">
+                <p>Checking metrics backend connection...</p>
+            </div>
+            <div class="flex gap-4 mt-4">
+                <button onclick="checkBackendStatus()" class="test-btn" style="width: auto; padding: 10px 20px;">
+                    🔄 Check Status
+                </button>
+                <a href="http://localhost:3012" target="_blank" class="test-btn" style="width: auto; padding: 10px 20px; text-decoration: none;">
+                    🌐 Open Dashboard
+                </a>
+            </div>
+        </div>
+
+        <!-- Configuration Examples -->
+        <div class="status-panel">
+            <h3>⚙️ Configuration Examples</h3>
+            
+            <h4>Basic Metrics Backend Configuration:</h4>
+            <div class="code-block">ImportSDK.init(container, {
+    apiEndpoint: 'http://localhost:3011/geored/bin/service/import',
+    
+    // Enable metrics backend
+    metricsBackend: {
+        enabled: true,
+        baseURL: 'http://localhost:3012',
+        includeProgress: true
+    },
+    
+    // Other configuration...
+    chunkSize: 50,
+    resultExport: ['success', 'errors', 'logs']
+});</div>
+
+            <h4>Advanced Configuration with Custom Session:</h4>
+            <div class="code-block">ImportSDK.init(container, {
+    apiEndpoint: 'http://localhost:3011/geored/bin/service/import',
+    
+    // Advanced metrics backend configuration
+    metricsBackend: {
+        enabled: true,
+        baseURL: 'http://localhost:3012',
+        sessionId: 'custom-session-' + Date.now(),
+        includeProgress: true,
+        endpoints: {
+            metrics: '/api/import/metrics',
+            progress: '/api/import/progress',
+            audit: '/api/audit/log'
+        }
+    },
+    
+    // Enable comprehensive monitoring
+    resultExport: ['success', 'errors', 'filtered', 'logs'],
+    
+    onMetrics: (metrics) => {
+        console.log('📊 Import completed:', {
+            duration: metrics.totalDurationSeconds,
+            throughput: metrics.rowsPerSecond,
+            efficiency: metrics.efficiency,
+            performanceScore: metrics.performanceScore
+        });
+    }
+});</div>
+        </div>
+
+        <!-- Test Controls -->
+        <div class="test-controls">
+            <button class="test-btn" onclick="runBasicMetricsTest()">
+                <span>📊</span> Basic Metrics Test
+            </button>
+            <button class="test-btn" onclick="runProgressTrackingTest()">
+                <span>📈</span> Progress Tracking Test
+            </button>
+            <button class="test-btn" onclick="runErrorTrackingTest()">
+                <span>🚨</span> Error Tracking Test
+            </button>
+            <button class="test-btn" onclick="runPerformanceTest()">
+                <span>⚡</span> Performance Test
+            </button>
+            <button class="test-btn" onclick="runPluginMetricsTest()">
+                <span>🔧</span> Plugin Metrics Test
+            </button>
+            <button class="test-btn" onclick="clearLogs()">
+                <span>🗑️</span> Clear Logs
+            </button>
+        </div>
+
+        <div class="status-panel">
+            <h3>📋 Metrics Backend Log</h3>
+            <div id="metrics-log" class="metrics-log">
+                <div class="log-entry log-info">[INFO] Ready to test metrics backend integration...</div>
+            </div>
+        </div>
+
+        <div id="import-container"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="import-sdk.js"></script>
+    <script>
+        let currentSDK = null;
+        let logCount = 0;
+
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logContainer = document.getElementById('metrics-log');
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${type}`;
+            logEntry.textContent = `[${timestamp}] [${type.toUpperCase()}] ${message}`;
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            
+            console.log(`[MetricsTest] ${message}`);
+            logCount++;
+        }
+
+        function clearLogs() {
+            document.getElementById('metrics-log').innerHTML = 
+                '<div class="log-entry log-info">[INFO] Logs cleared...</div>';
+            logCount = 0;
+        }
+
+        function createTestData(rowCount = 100, includeErrors = false) {
+            let csvData = 'tankNumber,city,latitude,longitude,inspectionDate,price\n';
+            
+            for (let i = 1; i <= rowCount; i++) {
+                const cities = ['Paris', 'London', 'Berlin', 'Madrid', 'Rome'];
+                const city = cities[Math.floor(Math.random() * cities.length)];
+                
+                // Add some intentional errors for testing
+                const lat = includeErrors && i % 10 === 0 ? '999.0000' : (45 + Math.random() * 10).toFixed(4);
+                const lng = includeErrors && i % 15 === 0 ? '-999.0000' : (2 + Math.random() * 10).toFixed(4);
+                const date = includeErrors && i % 20 === 0 ? 'invalid-date' : '2024-01-15';
+                const price = includeErrors && i % 25 === 0 ? 'not-a-number' : (1000 + Math.random() * 2000).toFixed(2);
+                
+                csvData += `TANK_${String(i).padStart(6, '0')},${city},${lat},${lng},${date},${price}\n`;
+            }
+            
+            return csvData;
+        }
+
+        function initSDKWithMetrics(testName, customConfig = {}) {
+            const container = document.getElementById('import-container');
+            container.innerHTML = '';
+            
+            const config = {
+                apiEndpoint: 'http://localhost:3011/geored/bin/service/import',
+                chunkSize: 25,
+                resultExport: ['success', 'errors', 'logs'],
+                
+                // Enable metrics backend
+                metricsBackend: {
+                    enabled: true,
+                    baseURL: 'http://localhost:3012',
+                    sessionId: `test-${testName}-${Date.now()}`,
+                    includeProgress: true
+                },
+                
+                onProgress: (stats) => {
+                    addLog(`Progress: ${stats.successCount} success, ${stats.errorCount} errors, ${stats.totalCount} total`, 'progress');
+                },
+                
+                onComplete: (result) => {
+                    addLog(`Import complete! Metrics should be visible in backend dashboard`, 'success');
+                    addLog(`Final stats: ${result.successCount}/${result.totalCount} success (${((result.successCount/result.totalCount)*100).toFixed(1)}%)`, 'success');
+                },
+                
+                onMetrics: (metrics) => {
+                    addLog(`Metrics collected: ${metrics.rowsPerSecond.toFixed(1)} rows/sec, ${metrics.efficiency.toFixed(1)}% efficiency, score: ${metrics.performanceScore}`, 'info');
+                },
+                
+                onError: (err) => {
+                    addLog(`Error: ${err.message || err}`, 'error');
+                },
+                
+                ...customConfig
+            };
+            
+            currentSDK = ImportSDK.init(container, config);
+            addLog(`SDK initialized for test: ${testName}`, 'info');
+            return currentSDK;
+        }
+
+        function checkBackendStatus() {
+            addLog('Checking backend status...', 'info');
+            
+            fetch('http://localhost:3012/api/health')
+                .then(response => response.json())
+                .then(data => {
+                    const statusDiv = document.getElementById('backend-status');
+                    statusDiv.innerHTML = `
+                        <div style="color: #28a745; font-weight: bold;">✅ Backend is running</div>
+                        <div style="font-size: 14px; margin-top: 10px;">
+                            <strong>Status:</strong> ${data.status}<br>
+                            <strong>Uptime:</strong> ${Math.floor(data.uptime)}s<br>
+                            <strong>Memory:</strong> ${Math.round(data.memory.heapUsed / 1024 / 1024)}MB<br>
+                            <strong>Storage:</strong> ${data.storage.imports} imports, ${data.storage.auditLogs} logs
+                        </div>
+                    `;
+                    addLog('Backend connection successful', 'success');
+                })
+                .catch(error => {
+                    const statusDiv = document.getElementById('backend-status');
+                    statusDiv.innerHTML = `
+                        <div style="color: #dc3545; font-weight: bold;">❌ Backend connection failed</div>
+                        <div style="font-size: 14px; margin-top: 10px;">
+                            <strong>Error:</strong> ${error.message}<br>
+                            <strong>Solution:</strong> Start the metrics backend with: <code>cd metrics-backend && npm start</code>
+                        </div>
+                    `;
+                    addLog(`Backend connection failed: ${error.message}`, 'error');
+                });
+        }
+
+        function runBasicMetricsTest() {
+            addLog('Starting basic metrics test...', 'info');
+            const sdk = initSDKWithMetrics('basic');
+            
+            const csvData = createTestData(50, false);
+            const file = new File([csvData], 'basic-test.csv', { type: 'text/csv' });
+            
+            sdk.handleFileSelect(file);
+            addLog('Test file loaded (50 rows, no errors)', 'info');
+        }
+
+        function runProgressTrackingTest() {
+            addLog('Starting progress tracking test...', 'info');
+            const sdk = initSDKWithMetrics('progress', {
+                chunkSize: 10 // Smaller chunks for more progress updates
+            });
+            
+            const csvData = createTestData(100, false);
+            const file = new File([csvData], 'progress-test.csv', { type: 'text/csv' });
+            
+            sdk.handleFileSelect(file);
+            addLog('Test file loaded (100 rows, smaller chunks for progress tracking)', 'info');
+        }
+
+        function runErrorTrackingTest() {
+            addLog('Starting error tracking test...', 'info');
+            const sdk = initSDKWithMetrics('error-tracking');
+            
+            const csvData = createTestData(80, true); // Include errors
+            const file = new File([csvData], 'error-test.csv', { type: 'text/csv' });
+            
+            sdk.handleFileSelect(file);
+            addLog('Test file loaded (80 rows with intentional errors)', 'info');
+        }
+
+        function runPerformanceTest() {
+            addLog('Starting performance test...', 'info');
+            const sdk = initSDKWithMetrics('performance', {
+                chunkSize: 50,
+                concurrency: 2
+            });
+            
+            const csvData = createTestData(200, false);
+            const file = new File([csvData], 'performance-test.csv', { type: 'text/csv' });
+            
+            sdk.handleFileSelect(file);
+            addLog('Test file loaded (200 rows, higher concurrency)', 'info');
+        }
+
+        function runPluginMetricsTest() {
+            addLog('Starting plugin metrics test...', 'info');
+            
+            // Register some test plugins for metrics tracking
+            ImportSDK.use({
+                name: 'testDatePlugin',
+                type: 'field',
+                transform(value, fieldName, row, config) {
+                    if (fieldName.includes('Date')) {
+                        return new Date(value).toISOString();
+                    }
+                    return value;
+                }
+            });
+            
+            ImportSDK.use({
+                name: 'testValidatorPlugin',
+                type: 'row',
+                validate(row, config) {
+                    if (!row.city || row.city.length < 2) {
+                        return { isValid: false, error: 'City name too short' };
+                    }
+                    return { isValid: true };
+                }
+            });
+            
+            const sdk = initSDKWithMetrics('plugin-metrics');
+            
+            const csvData = createTestData(75, false);
+            const file = new File([csvData], 'plugin-test.csv', { type: 'text/csv' });
+            
+            sdk.handleFileSelect(file);
+            addLog('Test file loaded (75 rows with active plugins)', 'info');
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            addLog('Metrics backend test suite ready', 'success');
+            checkBackendStatus();
+            
+            // Check backend status every 30 seconds
+            setInterval(checkBackendStatus, 30000);
+        });
+    </script>
+</body>
+</html>
