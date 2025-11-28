@@ -45,7 +45,18 @@ class ImportSDK {
             resultExport: config.resultExport || [],
             onProgress: config.onProgress || null,
             onComplete: config.onComplete || null,
-            onError: config.onError || null
+            onError: config.onError || null,
+            // CSV Normalization Layer
+            csvNormalization: {
+                enabled: config.csvNormalization?.enabled !== false, // Default: true
+                trimBOM: config.csvNormalization?.trimBOM !== false, // Default: true
+                normalizeLineEndings: config.csvNormalization?.normalizeLineEndings !== false, // Default: true
+                autoDetectDelimiter: config.csvNormalization?.autoDetectDelimiter !== false, // Default: true
+                removeUnicodeJunk: config.csvNormalization?.removeUnicodeJunk !== false, // Default: true
+                stripEmptyLines: config.csvNormalization?.stripEmptyLines !== false, // Default: true
+                sanitizeHeaders: config.csvNormalization?.sanitizeHeaders !== false, // Default: true
+                ...config.csvNormalization
+            }
         };
 
         // Default translations (English)
@@ -361,6 +372,217 @@ class ImportSDK {
         this.state.logs = [];
     }
 
+    /**
+     * Normalize CSV content to handle common issues in real-world files
+     * @param {string} csvContent - Raw CSV content as string
+     * @returns {object} - { content: normalizedContent, delimiter: detectedDelimiter, issues: [] }
+     */
+    normalizeCSV(csvContent) {
+        const config = this.config.csvNormalization;
+        const issues = [];
+        let content = csvContent;
+        let detectedDelimiter = ','; // default
+
+        if (!config.enabled) {
+            return { content, delimiter: detectedDelimiter, issues };
+        }
+
+        // 1. Trim BOM (Byte Order Mark)
+        if (config.trimBOM && content.length > 0) {
+            const bomPatterns = [
+                '\uFEFF', // UTF-8 BOM
+                '\uFFFE', // UTF-16 BE BOM  
+                '\u0000\uFEFF', // UTF-16 LE BOM
+                '\uEF\uBB\uBF' // UTF-8 BOM as bytes
+            ];
+            
+            for (const bom of bomPatterns) {
+                if (content.startsWith(bom)) {
+                    content = content.slice(bom.length);
+                    issues.push(`Removed ${bom.length}-byte BOM`);
+                    break;
+                }
+            }
+        }
+
+        // 2. Auto-detect delimiter before other processing
+        if (config.autoDetectDelimiter) {
+            detectedDelimiter = this.detectDelimiter(content);
+            if (detectedDelimiter !== ',') {
+                issues.push(`Auto-detected delimiter: '${detectedDelimiter}'`);
+            }
+        }
+
+        // 3. Remove invisible Unicode junk
+        if (config.removeUnicodeJunk) {
+            const originalLength = content.length;
+            // Remove common invisible/control characters but preserve newlines and tabs
+            content = content.replace(/[\u200B-\u200D\uFEFF\u00A0\u2060\u180E]/g, ''); // Zero-width chars
+            content = content.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, ''); // Control chars except \t, \n, \r
+            content = content.replace(/[\u2000-\u200A\u202F\u205F\u3000]/g, ' '); // Various Unicode spaces -> regular space
+            
+            if (content.length !== originalLength) {
+                issues.push(`Removed ${originalLength - content.length} invisible/control characters`);
+            }
+        }
+
+        // 4. Normalize line endings to \n
+        if (config.normalizeLineEndings) {
+            const originalLength = content.length;
+            content = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+            if (content.length !== originalLength) {
+                issues.push('Normalized line endings to LF');
+            }
+        }
+
+        // 5. Strip empty lines (but preserve header)
+        if (config.stripEmptyLines) {
+            const lines = content.split('\n');
+            const originalLineCount = lines.length;
+            
+            // Keep first line (header) and non-empty lines
+            const filteredLines = lines.filter((line, index) => {
+                return index === 0 || line.trim().length > 0;
+            });
+            
+            if (filteredLines.length !== originalLineCount) {
+                issues.push(`Removed ${originalLineCount - filteredLines.length} empty lines`);
+            }
+            
+            content = filteredLines.join('\n');
+        }
+
+        // 6. Sanitize headers
+        if (config.sanitizeHeaders) {
+            const lines = content.split('\n');
+            if (lines.length > 0) {
+                const originalHeader = lines[0];
+                let sanitizedHeader = originalHeader;
+                
+                // Split by detected delimiter for proper header processing
+                const headerCells = this.parseCSVRow(originalHeader, detectedDelimiter);
+                const sanitizedCells = headerCells.map(cell => {
+                    let sanitized = cell.trim();
+                    
+                    // Remove quotes if they wrap the entire cell
+                    if ((sanitized.startsWith('"') && sanitized.endsWith('"')) || 
+                        (sanitized.startsWith("'") && sanitized.endsWith("'"))) {
+                        sanitized = sanitized.slice(1, -1);
+                    }
+                    
+                    // Replace problematic characters in headers
+                    sanitized = sanitized.replace(/[\n\r\t]/g, ' '); // Replace newlines/tabs with space
+                    sanitized = sanitized.replace(/\s+/g, ' '); // Collapse multiple spaces
+                    sanitized = sanitized.trim();
+                    
+                    return sanitized;
+                });
+                
+                // Rebuild header with proper quoting if needed
+                sanitizedHeader = sanitizedCells
+                    .map(cell => {
+                        // Quote cells that contain the delimiter or quotes
+                        if (cell.includes(detectedDelimiter) || cell.includes('"') || cell.includes('\n')) {
+                            return `"${cell.replace(/"/g, '""')}"`;
+                        }
+                        return cell;
+                    })
+                    .join(detectedDelimiter);
+                
+                if (sanitizedHeader !== originalHeader) {
+                    lines[0] = sanitizedHeader;
+                    content = lines.join('\n');
+                    issues.push('Sanitized header row');
+                }
+            }
+        }
+
+        return { content, delimiter: detectedDelimiter, issues };
+    }
+
+    /**
+     * Detect CSV delimiter by analyzing the first few lines
+     * @param {string} content - CSV content
+     * @returns {string} - Detected delimiter
+     */
+    detectDelimiter(content) {
+        const lines = content.split('\n').slice(0, 5); // Analyze first 5 lines
+        const delimiters = [',', ';', '\t', '|'];
+        const scores = {};
+
+        delimiters.forEach(delimiter => {
+            scores[delimiter] = 0;
+            
+            const lineCounts = lines.map(line => {
+                // Don't count delimiters inside quotes
+                let inQuotes = false;
+                let count = 0;
+                
+                for (let i = 0; i < line.length; i++) {
+                    const char = line[i];
+                    if (char === '"') {
+                        inQuotes = !inQuotes;
+                    } else if (char === delimiter && !inQuotes) {
+                        count++;
+                    }
+                }
+                return count;
+            }).filter(count => count > 0); // Only count lines that have the delimiter
+            
+            if (lineCounts.length > 0) {
+                // Score based on consistency (same count across lines) and frequency
+                const avgCount = lineCounts.reduce((a, b) => a + b, 0) / lineCounts.length;
+                const consistency = lineCounts.every(count => count === lineCounts[0]) ? 2 : 1;
+                scores[delimiter] = avgCount * consistency;
+            }
+        });
+
+        // Return delimiter with highest score
+        return Object.keys(scores).reduce((a, b) => scores[a] > scores[b] ? a : b, ',');
+    }
+
+    /**
+     * Parse a single CSV row respecting quotes and delimiters
+     * @param {string} row - CSV row
+     * @param {string} delimiter - Delimiter to use
+     * @returns {Array} - Array of cell values
+     */
+    parseCSVRow(row, delimiter = ',') {
+        const cells = [];
+        let current = '';
+        let inQuotes = false;
+        let i = 0;
+
+        while (i < row.length) {
+            const char = row[i];
+            const nextChar = row[i + 1];
+
+            if (char === '"') {
+                if (inQuotes && nextChar === '"') {
+                    // Escaped quote
+                    current += '"';
+                    i += 2;
+                } else {
+                    // Toggle quote state
+                    inQuotes = !inQuotes;
+                    i++;
+                }
+            } else if (char === delimiter && !inQuotes) {
+                // End of cell
+                cells.push(current);
+                current = '';
+                i++;
+            } else {
+                current += char;
+                i++;
+            }
+        }
+
+        // Add the last cell
+        cells.push(current);
+        return cells;
+    }
+
     startImport(mode = 'import') {
         if (!this.state.selectedFile || this.state.isProcessing) return;
 
@@ -390,31 +612,68 @@ class ImportSDK {
         this.updateStats();
         this.log(`${mode === 'check' ? this.t('checking') : this.t('importing')} Chunk size: ${this.config.chunkSize}`);
 
-        Papa.parse(this.state.selectedFile, {
-            header: true,
-            skipEmptyLines: true,
-            dynamicTyping: false, // Keep as strings for custom transformers
-            chunk: async (results, parser) => {
-                parser.pause();
-                await this.processRows(results.data, parser);
-                parser.resume();
-            },
-            complete: async () => {
-                this.log(this.t('parsingComplete'));
-                if (this.rowBuffer.length > 0 && this.state.mode === 'import') {
-                    // Send remaining rows
-                    const batch = [...this.rowBuffer];
-                    const result = await this.sendBatch(this.rowBuffer);
-                    this.handleBatchResult(result, batch);
-                    this.rowBuffer = [];
+        // Read file as text first for normalization
+        const fileReader = new FileReader();
+        fileReader.onload = (e) => {
+            try {
+                let csvContent = e.target.result;
+                let papaConfig = {
+                    header: true,
+                    skipEmptyLines: true,
+                    dynamicTyping: false, // Keep as strings for custom transformers
+                    chunk: async (results, parser) => {
+                        parser.pause();
+                        await this.processRows(results.data, parser);
+                        parser.resume();
+                    },
+                    complete: async () => {
+                        this.log(this.t('parsingComplete'));
+                        if (this.rowBuffer.length > 0 && this.state.mode === 'import') {
+                            // Send remaining rows
+                            const batch = [...this.rowBuffer];
+                            const result = await this.sendBatch(this.rowBuffer);
+                            this.handleBatchResult(result, batch);
+                            this.rowBuffer = [];
+                        }
+                        this.finishImport();
+                    },
+                    error: (err) => {
+                        this.log(this.t('parsingError', { message: err.message }), 'error');
+                        this.finishImport();
+                    }
+                };
+
+                // Apply CSV normalization if enabled
+                if (this.config.csvNormalization.enabled) {
+                    const normalizationResult = this.normalizeCSV(csvContent);
+                    csvContent = normalizationResult.content;
+                    
+                    // Log normalization issues
+                    if (normalizationResult.issues.length > 0) {
+                        this.log(`CSV Normalization: ${normalizationResult.issues.join(', ')}`, 'info');
+                    }
+                    
+                    // Use detected delimiter
+                    if (normalizationResult.delimiter !== ',') {
+                        papaConfig.delimiter = normalizationResult.delimiter;
+                    }
                 }
-                this.finishImport();
-            },
-            error: (err) => {
-                this.log(this.t('parsingError', { message: err.message }), 'error');
+
+                // Parse the normalized content
+                Papa.parse(csvContent, papaConfig);
+                
+            } catch (err) {
+                this.log(`File reading error: ${err.message}`, 'error');
                 this.finishImport();
             }
-        });
+        };
+        
+        fileReader.onerror = () => {
+            this.log('Failed to read file', 'error');
+            this.finishImport();
+        };
+        
+        fileReader.readAsText(this.state.selectedFile);
     }
 
     async processRows(newRows, parser) {
