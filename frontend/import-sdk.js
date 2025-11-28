@@ -25,6 +25,108 @@
  */
 
 class ImportSDK {
+    // Static plugin registry
+    static plugins = [];
+
+    /**
+     * Register a plugin with the SDK
+     * @param {Object} plugin - Plugin configuration
+     * @param {string} plugin.name - Plugin name
+     * @param {string} plugin.type - Plugin type: 'field', 'row', 'batch'
+     * @param {Function} [plugin.transform] - Transform function for field/row plugins
+     * @param {Function} [plugin.validate] - Validation function for field/row plugins
+     * @param {Function} [plugin.filter] - Filter function for row plugins
+     * @param {Function} [plugin.beforeSend] - Before send hook for batch plugins
+     * @param {Function} [plugin.afterSend] - After send hook for batch plugins
+     * @param {Function} [plugin.onInit] - Initialization hook
+     * @param {Function} [plugin.onFileSelect] - File selection hook
+     * @param {Function} [plugin.onComplete] - Completion hook
+     * @param {Object} [plugin.config] - Plugin-specific configuration
+     */
+    static use(plugin) {
+        if (!plugin.name) {
+            throw new Error('Plugin must have a name');
+        }
+
+        if (!['field', 'row', 'batch'].includes(plugin.type)) {
+            throw new Error('Plugin type must be one of: field, row, batch');
+        }
+
+        // Check for duplicate plugin names
+        if (ImportSDK.plugins.find(p => p.name === plugin.name)) {
+            throw new Error(`Plugin '${plugin.name}' is already registered`);
+        }
+
+        // Validate plugin structure based on type
+        ImportSDK._validatePlugin(plugin);
+
+        ImportSDK.plugins.push(plugin);
+        console.log(`Plugin '${plugin.name}' registered successfully`);
+        return ImportSDK;
+    }
+
+    /**
+     * Validate plugin structure
+     * @private
+     */
+    static _validatePlugin(plugin) {
+        const requiredMethods = {
+            field: ['transform'],
+            row: [], // Row plugins are flexible - can have transform, validate, filter
+            batch: [] // Batch plugins are flexible - can have beforeSend, afterSend
+        };
+
+        // Field plugins must have transform method
+        if (plugin.type === 'field' && !plugin.transform) {
+            throw new Error(`Field plugin '${plugin.name}' must have a transform method`);
+        }
+
+        // Validate method signatures if they exist
+        const methodsToCheck = ['transform', 'validate', 'filter', 'beforeSend', 'afterSend', 'onInit', 'onFileSelect', 'onComplete'];
+        methodsToCheck.forEach(method => {
+            if (plugin[method] && typeof plugin[method] !== 'function') {
+                throw new Error(`Plugin '${plugin.name}' method '${method}' must be a function`);
+            }
+        });
+    }
+
+    /**
+     * Get all registered plugins
+     */
+    static getPlugins() {
+        return [...ImportSDK.plugins];
+    }
+
+    /**
+     * Get plugins by type
+     * @param {string} type - Plugin type to filter by
+     */
+    static getPluginsByType(type) {
+        return ImportSDK.plugins.filter(p => p.type === type);
+    }
+
+    /**
+     * Remove a plugin by name
+     * @param {string} name - Plugin name to remove
+     */
+    static removePlugin(name) {
+        const index = ImportSDK.plugins.findIndex(p => p.name === name);
+        if (index >= 0) {
+            ImportSDK.plugins.splice(index, 1);
+            console.log(`Plugin '${name}' removed successfully`);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Clear all plugins
+     */
+    static clearPlugins() {
+        ImportSDK.plugins = [];
+        console.log('All plugins cleared');
+    }
+
     constructor(container, config) {
         this.container = container;
         this.config = {
@@ -122,6 +224,25 @@ class ImportSDK {
         };
 
         this.rowBuffer = [];
+        
+        // Initialize plugins
+        this.activePlugins = {
+            field: ImportSDK.getPluginsByType('field'),
+            row: ImportSDK.getPluginsByType('row'),
+            batch: ImportSDK.getPluginsByType('batch')
+        };
+        
+        // Call plugin onInit hooks
+        ImportSDK.plugins.forEach(plugin => {
+            if (plugin.onInit) {
+                try {
+                    plugin.onInit(this, plugin.config || {});
+                } catch (err) {
+                    this.log(`Plugin '${plugin.name}' init error: ${err.message}`, 'error');
+                }
+            }
+        });
+        
         this.render();
         this.attachEventListeners();
     }
@@ -306,6 +427,17 @@ class ImportSDK {
             size: (file.size / 1024).toFixed(2),
             mapping: mappingInfo
         }));
+        
+        // Call plugin onFileSelect hooks
+        ImportSDK.plugins.forEach(plugin => {
+            if (plugin.onFileSelect) {
+                try {
+                    plugin.onFileSelect(file, this, plugin.config || {});
+                } catch (err) {
+                    this.log(`Plugin '${plugin.name}' file select error: ${err.message}`, 'error');
+                }
+            }
+        });
     }
 
     selectFileMapping(filename) {
@@ -761,17 +893,45 @@ class ImportSDK {
     }
 
     filterRow(row) {
-        if (!this.config.filters || Object.keys(this.config.filters).length === 0) {
-            return { passed: true };
+        // First apply built-in filters
+        if (this.config.filters && Object.keys(this.config.filters).length > 0) {
+            for (const [field, filterFn] of Object.entries(this.config.filters)) {
+                const value = row[field];
+                if (!filterFn(value)) {
+                    return { 
+                        passed: false, 
+                        reason: `${field}=${value}` 
+                    };
+                }
+            }
         }
 
-        for (const [field, filterFn] of Object.entries(this.config.filters)) {
-            const value = row[field];
-            if (!filterFn(value)) {
-                return { 
-                    passed: false, 
-                    reason: `${field}=${value}` 
-                };
+        // Then apply plugin filters
+        for (const plugin of this.activePlugins.row) {
+            if (plugin.filter) {
+                try {
+                    const result = plugin.filter(row, plugin.config || {});
+                    if (result && !result.passed) {
+                        return { 
+                            passed: false, 
+                            reason: result.reason || `Plugin '${plugin.name}' filtered row` 
+                        };
+                    }
+                    // Handle boolean return for backward compatibility
+                    if (typeof result === 'boolean' && !result) {
+                        return { 
+                            passed: false, 
+                            reason: `Plugin '${plugin.name}' filtered row` 
+                        };
+                    }
+                } catch (err) {
+                    this.log(`Plugin '${plugin.name}' filter error: ${err.message}`, 'error');
+                    // On filter error, exclude the row for safety
+                    return { 
+                        passed: false, 
+                        reason: `Plugin filter error: ${err.message}` 
+                    };
+                }
             }
         }
 
@@ -779,11 +939,64 @@ class ImportSDK {
     }
 
     validateRow(row) {
-        if (!this.activeMapping.validate) return { isValid: true };
+        // First run built-in validation
+        if (this.activeMapping.validate) {
+            for (const [field, [validator, msg]] of Object.entries(this.activeMapping.validate)) {
+                if (!validator(row[field])) {
+                    return { isValid: false, error: msg || `Invalid ${field}` };
+                }
+            }
+        }
 
-        for (const [field, [validator, msg]] of Object.entries(this.activeMapping.validate)) {
-            if (!validator(row[field])) {
-                return { isValid: false, error: msg || `Invalid ${field}` };
+        // Then run plugin validations
+        for (const plugin of this.activePlugins.field) {
+            if (plugin.validate) {
+                for (const [field, value] of Object.entries(row)) {
+                    try {
+                        const result = plugin.validate(value, field, row, plugin.config || {});
+                        if (result && !result.isValid) {
+                            return { 
+                                isValid: false, 
+                                error: result.error || `Plugin '${plugin.name}' validation failed for ${field}` 
+                            };
+                        }
+                        // Handle boolean return for backward compatibility
+                        if (typeof result === 'boolean' && !result) {
+                            return { 
+                                isValid: false, 
+                                error: `Plugin '${plugin.name}' validation failed for ${field}` 
+                            };
+                        }
+                    } catch (err) {
+                        this.log(`Plugin '${plugin.name}' validate error on field '${field}': ${err.message}`, 'error');
+                        return { isValid: false, error: `Plugin validation error: ${err.message}` };
+                    }
+                }
+            }
+        }
+
+        // Run row-level plugin validations
+        for (const plugin of this.activePlugins.row) {
+            if (plugin.validate) {
+                try {
+                    const result = plugin.validate(row, plugin.config || {});
+                    if (result && !result.isValid) {
+                        return { 
+                            isValid: false, 
+                            error: result.error || `Plugin '${plugin.name}' row validation failed` 
+                        };
+                    }
+                    // Handle boolean return for backward compatibility
+                    if (typeof result === 'boolean' && !result) {
+                        return { 
+                            isValid: false, 
+                            error: `Plugin '${plugin.name}' row validation failed` 
+                        };
+                    }
+                } catch (err) {
+                    this.log(`Plugin '${plugin.name}' row validate error: ${err.message}`, 'error');
+                    return { isValid: false, error: `Plugin validation error: ${err.message}` };
+                }
             }
         }
 
@@ -803,10 +1016,33 @@ class ImportSDK {
                 value = this.activeMapping.transformers[mappedKey](value);
             }
 
+            // Apply field-level plugins
+            this.activePlugins.field.forEach(plugin => {
+                if (plugin.transform) {
+                    try {
+                        value = plugin.transform(value, mappedKey, row, plugin.config || {});
+                    } catch (err) {
+                        this.log(`Plugin '${plugin.name}' transform error on field '${mappedKey}': ${err.message}`, 'error');
+                    }
+                }
+            });
+
             transformed[mappedKey] = value;
         });
 
-        return transformed;
+        // Apply row-level plugin transforms
+        let finalTransformed = transformed;
+        this.activePlugins.row.forEach(plugin => {
+            if (plugin.transform) {
+                try {
+                    finalTransformed = plugin.transform(finalTransformed, row, plugin.config || {}) || finalTransformed;
+                } catch (err) {
+                    this.log(`Plugin '${plugin.name}' row transform error: ${err.message}`, 'error');
+                }
+            }
+        });
+
+        return finalTransformed;
     }
 
     /**
@@ -877,12 +1113,27 @@ class ImportSDK {
 
     async sendBatch(batch) {
         try {
+            // Apply batch-level plugin beforeSend hooks
+            let processedBatch = batch;
+            for (const plugin of this.activePlugins.batch) {
+                if (plugin.beforeSend) {
+                    try {
+                        const result = plugin.beforeSend(processedBatch, this, plugin.config || {});
+                        if (result) {
+                            processedBatch = result;
+                        }
+                    } catch (err) {
+                        this.log(`Plugin '${plugin.name}' beforeSend error: ${err.message}`, 'error');
+                    }
+                }
+            }
+
             // Use custom send handler if provided, otherwise use default
             const sendHandler = this.config.sendHandler || this.defaultSendHandler.bind(this);
             
             let result;
             try {
-                result = await sendHandler(batch, this.config);
+                result = await sendHandler(processedBatch, this.config);
             } catch (handlerError) {
                 this.log(this.t('sendHandlerError', { message: handlerError.message }), 'error');
                 // Safe default on handler error
@@ -902,6 +1153,20 @@ class ImportSDK {
             }
             if (typeof result.success !== 'number') result.success = 0;
             if (!Array.isArray(result.errors)) result.errors = [];
+
+            // Apply batch-level plugin afterSend hooks
+            for (const plugin of this.activePlugins.batch) {
+                if (plugin.afterSend) {
+                    try {
+                        const pluginResult = plugin.afterSend(result, processedBatch, this, plugin.config || {});
+                        if (pluginResult) {
+                            result = pluginResult;
+                        }
+                    } catch (err) {
+                        this.log(`Plugin '${plugin.name}' afterSend error: ${err.message}`, 'error');
+                    }
+                }
+            }
 
             return result;
 
@@ -1027,14 +1292,27 @@ class ImportSDK {
             document.getElementById('import-sdk-export-actions').style.display = 'block';
         }
 
+        // Call plugin onComplete hooks
+        const completionStats = {
+            successCount: this.state.successCount,
+            errorCount: this.state.errorCount,
+            totalCount: this.state.totalCount,
+            filteredCount: this.state.filteredCount,
+            logs: this.state.logs
+        };
+
+        ImportSDK.plugins.forEach(plugin => {
+            if (plugin.onComplete) {
+                try {
+                    plugin.onComplete(completionStats, this, plugin.config || {});
+                } catch (err) {
+                    this.log(`Plugin '${plugin.name}' completion error: ${err.message}`, 'error');
+                }
+            }
+        });
+
         if (this.config.onComplete) {
-            this.config.onComplete({
-                successCount: this.state.successCount,
-                errorCount: this.state.errorCount,
-                totalCount: this.state.totalCount,
-                filteredCount: this.state.filteredCount,
-                logs: this.state.logs
-            });
+            this.config.onComplete(completionStats);
         }
     }
 

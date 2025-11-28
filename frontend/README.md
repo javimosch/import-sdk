@@ -148,6 +148,16 @@ Complete list of all configuration options available for `ImportSDK.init()`:
 | `sendHandler` | `function` | `null` | Custom API request handler function |
 | `i18n` | `object` | `{}` | Internationalization strings for UI text |
 
+### Plugin System
+
+| Method | Type | Description |
+|--------|------|-------------|
+| `ImportSDK.use(plugin)` | `static function` | Register a plugin with the SDK |
+| `ImportSDK.getPlugins()` | `static function` | Get all registered plugins |
+| `ImportSDK.getPluginsByType(type)` | `static function` | Get plugins by type ('field', 'row', 'batch') |
+| `ImportSDK.removePlugin(name)` | `static function` | Remove a plugin by name |
+| `ImportSDK.clearPlugins()` | `static function` | Clear all registered plugins |
+
 ### Callbacks
 
 | Option | Type | Default | Description |
@@ -658,6 +668,300 @@ Normalization adds minimal overhead:
 - **Large files** (10MB+): ~100-500ms processing time
 - Processing is done once before parsing begins
 - No impact on chunk processing or API calls
+
+## Plugin System
+
+Extend the SDK with custom functionality using a powerful plugin architecture. Plugins can operate at field, row, or batch levels with comprehensive lifecycle hooks.
+
+### Why Use Plugins?
+
+- **Extend Core Features**: Add functionality without modifying the SDK
+- **Reusable Components**: Share plugins across different projects
+- **Custom Business Logic**: Implement domain-specific transformations and validations
+- **Community Ecosystem**: Build and share plugins with the community
+
+### Plugin Types
+
+| Type | Level | Use Cases |
+|------|-------|-----------|
+| **Field** | Individual field values | Date parsing, number formatting, text normalization |
+| **Row** | Complete data rows | Cross-field validation, row enrichment, conditional logic |
+| **Batch** | Groups of rows | Batch processing, API optimization, aggregation |
+
+### Plugin Registration
+
+Register plugins using the static `use()` method before initializing the SDK:
+
+```javascript
+// Register a field-level plugin
+ImportSDK.use({
+    name: 'dateNormalizer',
+    type: 'field',
+    transform(value, fieldName, row, config) {
+        // Transform date strings to ISO format
+        if (fieldName.includes('Date') && typeof value === 'string') {
+            return new Date(value).toISOString();
+        }
+        return value;
+    },
+    validate(value, fieldName, row, config) {
+        // Validate date fields
+        if (fieldName.includes('Date') && value) {
+            const date = new Date(value);
+            if (isNaN(date.getTime())) {
+                return { isValid: false, error: 'Invalid date format' };
+            }
+        }
+        return { isValid: true };
+    },
+    config: {
+        dateFormat: 'ISO'
+    }
+});
+
+// Register a row-level plugin
+ImportSDK.use({
+    name: 'coordinateValidator',
+    type: 'row',
+    validate(row, config) {
+        const lat = parseFloat(row.latitude);
+        const lng = parseFloat(row.longitude);
+        
+        if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+            return { isValid: false, error: 'Invalid GPS coordinates' };
+        }
+        return { isValid: true };
+    },
+    filter(row, config) {
+        // Filter out rows with missing coordinates
+        if (!row.latitude || !row.longitude) {
+            return { passed: false, reason: 'Missing coordinates' };
+        }
+        return { passed: true };
+    }
+});
+
+// Register a batch-level plugin
+ImportSDK.use({
+    name: 'auditLogger',
+    type: 'batch',
+    beforeSend(batch, sdk, config) {
+        console.log(`Sending batch of ${batch.length} records`);
+        // Add audit fields to each record
+        return batch.map(record => ({
+            ...record,
+            _batchId: config.batchId || Date.now(),
+            _processedAt: new Date().toISOString()
+        }));
+    },
+    afterSend(result, batch, sdk, config) {
+        console.log(`Batch complete: ${result.success} success, ${result.errors.length} errors`);
+        return result;
+    }
+});
+```
+
+### Plugin Lifecycle Hooks
+
+Each plugin can implement multiple lifecycle hooks:
+
+#### **Initialization & File Handling**
+```javascript
+{
+    onInit(sdk, config) {
+        // Called when SDK instance is created
+        console.log('Plugin initialized');
+    },
+    onFileSelect(file, sdk, config) {
+        // Called when user selects a file
+        console.log('File selected:', file.name);
+    },
+    onComplete(stats, sdk, config) {
+        // Called when import finishes
+        console.log('Import complete:', stats);
+    }
+}
+```
+
+#### **Data Processing (Field Plugins)**
+```javascript
+{
+    type: 'field',
+    transform(value, fieldName, row, config) {
+        // Transform individual field values
+        // Return: transformed value
+    },
+    validate(value, fieldName, row, config) {
+        // Validate individual field values
+        // Return: { isValid: boolean, error?: string } or boolean
+    }
+}
+```
+
+#### **Data Processing (Row Plugins)**
+```javascript
+{
+    type: 'row',
+    transform(transformedRow, originalRow, config) {
+        // Transform entire rows
+        // Return: modified row object
+    },
+    validate(row, config) {
+        // Validate entire rows
+        // Return: { isValid: boolean, error?: string } or boolean
+    },
+    filter(row, config) {
+        // Filter rows before validation
+        // Return: { passed: boolean, reason?: string } or boolean
+    }
+}
+```
+
+#### **Batch Processing (Batch Plugins)**
+```javascript
+{
+    type: 'batch',
+    beforeSend(batch, sdk, config) {
+        // Process batch before sending to API
+        // Return: modified batch array
+    },
+    afterSend(result, batch, sdk, config) {
+        // Process API response
+        // Return: modified result object
+    }
+}
+```
+
+### Real-World Plugin Examples
+
+#### **Date Normalization Plugin**
+```javascript
+ImportSDK.use({
+    name: 'dateNormalizer',
+    type: 'field',
+    transform(value, fieldName, row, config) {
+        const dateFields = config.dateFields || ['date', 'created', 'updated'];
+        if (dateFields.some(field => fieldName.toLowerCase().includes(field))) {
+            // Handle various date formats
+            const formats = [
+                /^\d{2}\/\d{2}\/\d{4}$/,  // MM/DD/YYYY
+                /^\d{2}-\d{2}-\d{4}$/,    // MM-DD-YYYY
+                /^\d{4}-\d{2}-\d{2}$/     // YYYY-MM-DD
+            ];
+            
+            for (const format of formats) {
+                if (format.test(value)) {
+                    return new Date(value).toISOString();
+                }
+            }
+        }
+        return value;
+    },
+    config: {
+        dateFields: ['inspectionDate', 'createdAt']
+    }
+});
+```
+
+#### **Data Enrichment Plugin**
+```javascript
+ImportSDK.use({
+    name: 'geoEnrichment',
+    type: 'row',
+    transform(row, originalRow, config) {
+        // Add computed fields
+        if (row.latitude && row.longitude) {
+            row.coordinates = `${row.latitude},${row.longitude}`;
+            row.region = this.getRegion(row.latitude, row.longitude);
+        }
+        return row;
+    },
+    getRegion(lat, lng) {
+        // Simple region detection logic
+        if (lat > 45) return 'North';
+        if (lat < 35) return 'South';
+        return 'Central';
+    }
+});
+```
+
+#### **Batch Optimization Plugin**
+```javascript
+ImportSDK.use({
+    name: 'batchOptimizer',
+    type: 'batch',
+    beforeSend(batch, sdk, config) {
+        // Sort batch for database optimization
+        return batch.sort((a, b) => a.tankNumber.localeCompare(b.tankNumber));
+    },
+    afterSend(result, batch, sdk, config) {
+        // Add batch performance metrics
+        result.batchMetrics = {
+            batchSize: batch.length,
+            processedAt: new Date().toISOString()
+        };
+        return result;
+    }
+});
+```
+
+### Plugin Management
+
+```javascript
+// List all plugins
+console.log(ImportSDK.getPlugins());
+
+// Get plugins by type
+const fieldPlugins = ImportSDK.getPluginsByType('field');
+const batchPlugins = ImportSDK.getPluginsByType('batch');
+
+// Remove a specific plugin
+ImportSDK.removePlugin('dateNormalizer');
+
+// Clear all plugins
+ImportSDK.clearPlugins();
+```
+
+### Plugin Configuration
+
+Plugins can accept configuration through the `config` property:
+
+```javascript
+ImportSDK.use({
+    name: 'currencyConverter',
+    type: 'field',
+    transform(value, fieldName, row, config) {
+        if (config.currencyFields.includes(fieldName)) {
+            return value * config.exchangeRate;
+        }
+        return value;
+    },
+    config: {
+        currencyFields: ['price', 'cost'],
+        exchangeRate: 1.1
+    }
+});
+```
+
+### Error Handling
+
+Plugins include comprehensive error handling:
+
+- **Transform errors**: Logged and original value preserved
+- **Validation errors**: Cause row to be marked as invalid
+- **Filter errors**: Row is excluded for safety
+- **Batch errors**: Logged and processing continues
+
+### Plugin Processing Order
+
+1. **CSV Normalization** (if enabled)
+2. **Field mapping and transformers** (built-in)
+3. **Field plugins** → `transform()` → `validate()`
+4. **Row plugins** → `transform()` → `filter()` → `validate()`
+5. **Built-in filters and validation**
+6. **Batch plugins** → `beforeSend()` → API call → `afterSend()`
+
+This system allows plugins to work together seamlessly while maintaining predictable processing order.
 
 ### Working with Filtered Data
 
