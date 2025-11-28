@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV Normalization Layer - Test Suite</title>
+    <link rel="stylesheet" href="import-ui.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+            background: #f5f7fa;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        .test-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 25px 0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .test-section h3 {
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .test-icon {
+            font-size: 1.2em;
+        }
+        
+        .issue-demo {
+            background: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+            border-left: 4px solid #ffc107;
+        }
+        
+        .csv-content {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre;
+            overflow-x: auto;
+            margin: 10px 0;
+            border: 1px solid #4a5568;
+        }
+        
+        .test-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 25px 0;
+        }
+        
+        .test-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            justify-content: center;
+        }
+        
+        .test-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .test-btn:active {
+            transform: translateY(0);
+        }
+        
+        .config-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 25px 0;
+            border: 1px solid #dee2e6;
+        }
+        
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 15px;
+        }
+        
+        .config-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            background: white;
+            border-radius: 4px;
+            border: 1px solid #ced4da;
+        }
+        
+        .config-option input[type="checkbox"] {
+            transform: scale(1.2);
+        }
+        
+        .config-option label {
+            flex: 1;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        
+        .status-panel {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            display: none;
+        }
+        
+        .status-panel.error {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        
+        .current-test {
+            background: #e3f2fd;
+            border: 1px solid #90caf9;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            display: none;
+        }
+        
+        .normalization-log {
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .log-entry {
+            padding: 5px 0;
+            border-bottom: 1px solid #f1f3f4;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+        
+        .log-info { color: #0066cc; }
+        .log-success { color: #28a745; }
+        .log-warning { color: #ffc107; }
+        
+        .feature-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .feature-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        
+        .feature-title {
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 8px;
+        }
+        
+        .feature-desc {
+            font-size: 14px;
+            color: #718096;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧹 CSV Normalization Layer - Test Suite</h1>
+            <p>Comprehensive testing for automatic CSV cleaning and normalization features</p>
+        </div>
+
+        <div class="test-section">
+            <h3><span class="test-icon">🎯</span> What Does CSV Normalization Fix?</h3>
+            <div class="feature-list">
+                <div class="feature-card">
+                    <div class="feature-title">BOM Removal</div>
+                    <div class="feature-desc">Removes Byte Order Marks that break parsing</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-title">Line Endings</div>
+                    <div class="feature-desc">Normalizes CRLF, CR to consistent LF</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-title">Delimiter Detection</div>
+                    <div class="feature-desc">Auto-detects comma, semicolon, tab, pipe</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-title">Unicode Cleanup</div>
+                    <div class="feature-desc">Removes invisible characters and weird spaces</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-title">Empty Lines</div>
+                    <div class="feature-desc">Strips blank rows while preserving header</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-title">Header Sanitization</div>
+                    <div class="feature-desc">Cleans newlines, quotes, spacing in headers</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="config-section">
+            <h3>⚙️ Normalization Configuration</h3>
+            <p>Toggle individual normalization features on/off:</p>
+            <div class="config-grid">
+                <div class="config-option">
+                    <input type="checkbox" id="enabled" checked>
+                    <label for="enabled">Enable Normalization</label>
+                </div>
+                <div class="config-option">
+                    <input type="checkbox" id="trimBOM" checked>
+                    <label for="trimBOM">Trim BOM</label>
+                </div>
+                <div class="config-option">
+                    <input type="checkbox" id="normalizeLineEndings" checked>
+                    <label for="normalizeLineEndings">Normalize Line Endings</label>
+                </div>
+                <div class="config-option">
+                    <input type="checkbox" id="autoDetectDelimiter" checked>
+                    <label for="autoDetectDelimiter">Auto-detect Delimiter</label>
+                </div>
+                <div class="config-option">
+                    <input type="checkbox" id="removeUnicodeJunk" checked>
+                    <label for="removeUnicodeJunk">Remove Unicode Junk</label>
+                </div>
+                <div class="config-option">
+                    <input type="checkbox" id="stripEmptyLines" checked>
+                    <label for="stripEmptyLines">Strip Empty Lines</label>
+                </div>
+                <div class="config-option">
+                    <input type="checkbox" id="sanitizeHeaders" checked>
+                    <label for="sanitizeHeaders">Sanitize Headers</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-buttons">
+            <button class="test-btn" onclick="testBOM()">
+                <span>📝</span> Test BOM Removal
+            </button>
+            <button class="test-btn" onclick="testDelimiter()">
+                <span>🔍</span> Test Delimiter Detection
+            </button>
+            <button class="test-btn" onclick="testLineEndings()">
+                <span>↩️</span> Test Line Endings
+            </button>
+            <button class="test-btn" onclick="testUnicode()">
+                <span>👻</span> Test Unicode Cleanup
+            </button>
+            <button class="test-btn" onclick="testEmptyLines()">
+                <span>🗑️</span> Test Empty Lines
+            </button>
+            <button class="test-btn" onclick="testHeaders()">
+                <span>🧽</span> Test Header Cleanup
+            </button>
+            <button class="test-btn" onclick="testAllIssues()">
+                <span>💥</span> Test All Issues
+            </button>
+            <button class="test-btn" onclick="testRealWorld()">
+                <span>🌍</span> Real-World Example
+            </button>
+        </div>
+
+        <div id="current-test" class="current-test">
+            <h4>📋 Current Test</h4>
+            <div id="test-description"></div>
+            <h5>Problematic CSV Content:</h5>
+            <div id="csv-content" class="csv-content"></div>
+            <h5>Normalization Log:</h5>
+            <div id="normalization-log" class="normalization-log"></div>
+        </div>
+
+        <div id="status" class="status-panel"></div>
+        
+        <div id="import-container"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="import-sdk.js"></script>
+    <script>
+        let currentSDK = null;
+        let normalizationLogs = [];
+
+        function getCurrentConfig() {
+            return {
+                enabled: document.getElementById('enabled').checked,
+                trimBOM: document.getElementById('trimBOM').checked,
+                normalizeLineEndings: document.getElementById('normalizeLineEndings').checked,
+                autoDetectDelimiter: document.getElementById('autoDetectDelimiter').checked,
+                removeUnicodeJunk: document.getElementById('removeUnicodeJunk').checked,
+                stripEmptyLines: document.getElementById('stripEmptyLines').checked,
+                sanitizeHeaders: document.getElementById('sanitizeHeaders').checked
+            };
+        }
+
+        function initSDK(testName) {
+            const container = document.getElementById('import-container');
+            container.innerHTML = '';
+            normalizationLogs = [];
+            
+            currentSDK = ImportSDK.init(container, {
+                apiEndpoint: 'http://localhost:3011/geored/bin/service/import',
+                chunkSize: 10,
+                resultExport: ['success', 'errors', 'logs'],
+                csvNormalization: getCurrentConfig(),
+                
+                onProgress: (stats) => {
+                    showStatus(`Processing... Success: ${stats.successCount}, Errors: ${stats.errorCount}`, 'success');
+                },
+                
+                onComplete: (stats) => {
+                    showStatus(`✅ Test "${testName}" Complete! Success: ${stats.successCount}, Errors: ${stats.errorCount}, Total: ${stats.totalCount}`, 'success');
+                },
+                
+                onError: (err) => {
+                    console.error('SDK Error:', err);
+                }
+            });
+            
+            // Intercept the log method to capture normalization messages
+            const originalLog = currentSDK.log.bind(currentSDK);
+            currentSDK.log = function(message, type = 'info') {
+                originalLog(message, type);
+                if (message.includes('CSV Normalization:')) {
+                    normalizationLogs.push({ message, type });
+                    updateNormalizationLog();
+                }
+            };
+            
+            return currentSDK;
+        }
+
+        function createTestFile(content, filename = 'test.csv') {
+            const blob = new Blob([content], { type: 'text/csv' });
+            return new File([blob], filename, { type: 'text/csv' });
+        }
+
+        function showTest(description, content) {
+            document.getElementById('current-test').style.display = 'block';
+            document.getElementById('test-description').innerHTML = description;
+            document.getElementById('csv-content').textContent = content;
+            document.getElementById('normalization-log').innerHTML = '<div class="log-entry log-info">Waiting for normalization...</div>';
+        }
+
+        function updateNormalizationLog() {
+            const logContainer = document.getElementById('normalization-log');
+            if (normalizationLogs.length > 0) {
+                logContainer.innerHTML = normalizationLogs.map(log => 
+                    `<div class="log-entry log-${log.type}">${log.message}</div>`
+                ).join('');
+            }
+        }
+
+        function showStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status-panel ${type}`;
+            status.style.display = 'block';
+            
+            setTimeout(() => {
+                status.style.display = 'none';
+            }, 5000);
+        }
+
+        // Test Functions
+        function testBOM() {
+            const sdk = initSDK('BOM Removal');
+            const content = '\uFEFF"tankNumber","city","country"\n"TANK_001","Paris","France"\n"TANK_002","Lyon","France"';
+            
+            showTest(
+                '🎯 <strong>BOM Removal Test</strong><br>This CSV starts with a UTF-8 BOM (\\uFEFF) which is invisible but breaks parsing.',
+                content
+            );
+            
+            const file = createTestFile(content, 'test-bom.csv');
+            sdk.handleFileSelect(file);
+        }
+
+        function testDelimiter() {
+            const sdk = initSDK('Delimiter Detection');
+            const content = '"tankNumber";"city";"country";"coordinates"\n"TANK_001";"Paris";"France";"48.8566, 2.3522"\n"TANK_002";"Lyon";"France";"45.7640, 4.8357"';
+            
+            showTest(
+                '🔍 <strong>Delimiter Auto-Detection Test</strong><br>This CSV uses semicolons instead of commas. The SDK should detect and handle this automatically.',
+                content
+            );
+            
+            const file = createTestFile(content, 'test-semicolon.csv');
+            sdk.handleFileSelect(file);
+        }
+
+        function testLineEndings() {
+            const sdk = initSDK('Line Ending Normalization');
+            const content = '"tankNumber","city"\r\n"TANK_001","Paris"\r"TANK_002","Lyon"\n"TANK_003","Marseille"';
+            
+            showTest(
+                '↩️ <strong>Line Ending Normalization Test</strong><br>This CSV mixes Windows (\\r\\n), Mac (\\r), and Unix (\\n) line endings.',
+                content
+            );
+            
+            const file = createTestFile(content, 'test-lineendings.csv');
+            sdk.handleFileSelect(file);
+        }
+
+        function testUnicode() {
+            const sdk = initSDK('Unicode Cleanup');
+            const content = '"tank​Number","city\u2000Name","coun\u200Btry"\n"TANK_001","Par​is","Fra\u2060nce"\n"TANK_002","Ly\u200Bon","France"';
+            
+            showTest(
+                '👻 <strong>Unicode Cleanup Test</strong><br>This CSV contains invisible Unicode characters: zero-width space (\\u200B), em space (\\u2000), word joiner (\\u2060).',
+                content
+            );
+            
+            const file = createTestFile(content, 'test-unicode.csv');
+            sdk.handleFileSelect(file);
+        }
+
+        function testEmptyLines() {
+            const sdk = initSDK('Empty Line Removal');
+            const content = '"tankNumber","city","country"\n\n"TANK_001","Paris","France"\n\n\n"TANK_002","Lyon","France"\n\n"TANK_003","Marseille","France"\n\n\n';
+            
+            showTest(
+                '🗑️ <strong>Empty Line Removal Test</strong><br>This CSV has multiple empty lines scattered throughout that should be removed.',
+                content
+            );
+            
+            const file = createTestFile(content, 'test-emptylines.csv');
+            sdk.handleFileSelect(file);
+        }
+
+        function testHeaders() {
+            const sdk = initSDK('Header Sanitization');
+            const content = '"Tank\nNumber","  City  ","\'Country\'","\"Type\""\n"TANK_001","Paris","France","Storage"\n"TANK_002","Lyon","France","Transport"';
+            
+            showTest(
+                '🧽 <strong>Header Sanitization Test</strong><br>This CSV has problematic headers: newlines, extra spaces, mixed quotes.',
+                content
+            );
+            
+            const file = createTestFile(content, 'test-headers.csv');
+            sdk.handleFileSelect(file);
+        }
+
+        function testAllIssues() {
+            const sdk = initSDK('All Issues Combined');
+            const content = '\uFEFF"Tank\nNumber";"  City​  ";"\'Country\'";"Type"\r\n\r\n"TANK_001";"Par​is";"Fra\u2060nce";"Storage"\r\n\n"TANK_002";"Ly\u200Bon";"France";"Transport"\n\n';
+            
+            showTest(
+                '💥 <strong>All Issues Combined Test</strong><br>This CSV has ALL the problems: BOM, semicolon delimiter, mixed line endings, Unicode junk, empty lines, and messy headers.',
+                content
+            );
+            
+            const file = createTestFile(content, 'test-nightmare.csv');
+            sdk.handleFileSelect(file);
+        }
+
+        function testRealWorld() {
+            const sdk = initSDK('Real-World Example');
+            const content = '\uFEFF"Tank ID";"Location Name";"GPS Coordinates";"Tank Type";"Last Inspection"\r\n\r\n"TANK_001";"Paris\u2000Central";"48.8566,\u20092.3522";"Stor​age";"2024-01-15"\r\n"TANK_002";"Lyon\u200BDistrict";"45.7640, 4.8357";"Transport";"2024-01-20"\r\n\r\n"TANK_003";"Marseille\nPort";"43.2965,5.3698";"Storage";"2024-01-25"\n\n';
+            
+            showTest(
+                '🌍 <strong>Real-World Example</strong><br>This simulates a typical messy export from Excel/ERP systems with all common issues combined.',
+                content
+            );
+            
+            const file = createTestFile(content, 'real-world-export.csv');
+            sdk.handleFileSelect(file);
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            showStatus('CSV Normalization Test Suite Ready! Select any test to see the normalization in action.', 'success');
+            console.log('🧹 CSV Normalization Test Suite Loaded');
+            console.log('💡 Tip: Open browser dev tools to see detailed normalization logs');
+            console.log('⚙️ Configure normalization options above before running tests');
+        });
+    </script>
+</body>
+</html>
