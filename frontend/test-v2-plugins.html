@@ -546,7 +546,6 @@
                     <button class="btn danger" onclick="pauseImport()">Pause</button>
                     <button class="btn secondary" onclick="resumeImport()">Resume</button>
                     <button class="btn secondary" onclick="cancelImport()">Cancel</button>
-                    <button class="btn secondary" onclick="clearOrchestratorLog()">Clear Log</button>
                 </div>
                 
                 <div>
@@ -668,7 +667,7 @@
         
         // Error Enhancement Demo
         function enhanceError(element, message, rowData) {
-            const errorPlugin = ImportSDK ? ImportSDK.plugins.find(p => p.name === 'errorEnhancer') : null;
+            const errorPlugin = ImportSDKPlugins ? ImportSDKPlugins.getPlugin('errorEnhancer') : null;
             if (!errorPlugin) return;
             
             const enhanced = errorPlugin.formatError(
@@ -692,7 +691,7 @@
         }
         
         function generateErrorSummary() {
-            const errorPlugin = ImportSDK ? ImportSDK.plugins.find(p => p.name === 'errorEnhancer') : null;
+            const errorPlugin = ImportSDKPlugins ? ImportSDKPlugins.getPlugin('errorEnhancer') : null;
             if (!errorPlugin || enhancedErrors.length === 0) {
                 alert('No errors to summarize or plugin not loaded');
                 return;
@@ -724,7 +723,7 @@
         
         // Metrics Demo
         function startMetricsDemo() {
-            const metricsPlugin = ImportSDK ? ImportSDK.plugins.find(p => p.name === 'enhancedMetrics') : null;
+            const metricsPlugin = ImportSDKPlugins ? ImportSDKPlugins.getPlugin('enhancedMetrics') : null;
             if (!metricsPlugin) return;
             
             // Initialize metrics
@@ -772,7 +771,7 @@
         
         function resetMetrics() {
             stopMetricsDemo();
-            const metricsPlugin = ImportSDK ? ImportSDK.plugins.find(p => p.name === 'enhancedMetrics') : null;
+            const metricsPlugin = ImportSDKPlugins ? ImportSDKPlugins.getPlugin('enhancedMetrics') : null;
             if (metricsPlugin) {
                 metricsPlugin.init(null, metricsPlugin.config);
             }
@@ -879,28 +878,17 @@
         
         // File Splitting Demo
         async function handleSplitFile(file) {
-            console.log('handleSplitFile called with file:', file);
-            
-            const splitter = ImportSDK ? ImportSDK.plugins.find(p => p.name === 'fileSplitter') : null;
-            console.log('splitter found:', !!splitter);
-            
-            if (!splitter) {
-                console.error('fileSplitter plugin not found');
-                return;
-            }
+            const splitter = ImportSDKPlugins ? ImportSDKPlugins.getPlugin('fileSplitter') : null;
+            if (!splitter) return;
             
             document.getElementById('splitting-results').style.display = 'block';
             
             const shouldSplit = splitter.shouldSplit(file, null, splitter.config);
-            console.log('shouldSplit:', shouldSplit);
             
             if (shouldSplit) {
-                console.log('Splitting file...');
                 const chunks = await splitter.split(file, null, splitter.config);
-                console.log('Chunks created:', chunks);
                 displaySplittingResults(chunks, file);
             } else {
-                console.log('File does not require splitting');
                 document.getElementById('chunk-info').innerHTML = `
                     <p>File does not require splitting (${file.size} bytes, estimated lines: ${splitter.estimateLineCount(file, splitter.config)})</p>
                 `;
@@ -908,7 +896,6 @@
         }
         
         function displaySplittingResults(chunks, originalFile) {
-            console.log('displaySplittingResults called with chunks:', chunks);
             const infoDiv = document.getElementById('chunk-info');
             infoDiv.innerHTML = `
                 <p><strong>Original file:</strong> ${originalFile.name} (${(originalFile.size / 1024).toFixed(1)}KB)</p>
@@ -922,47 +909,18 @@
             
             // Store chunks for processing
             window.currentChunks = chunks;
-            console.log('Chunks stored in window.currentChunks:', window.currentChunks);
         }
         
         async function processAllChunks() {
-            console.log('processAllChunks called');
-            console.log('window.currentChunks:', window.currentChunks);
+            if (!window.currentChunks) return;
             
-            if (!window.currentChunks) {
-                console.error('No chunks to process');
-                return;
-            }
-            
-            const splitter = ImportSDK ? ImportSDK.plugins.find(p => p.name === 'fileSplitter') : null;
-            console.log('splitter found:', !!splitter);
-            console.log('ImportSDK plugins:', ImportSDK ? ImportSDK.plugins.map(p => p.name) : 'ImportSDK not found');
-            
-            if (!splitter) {
-                console.error('fileSplitter plugin not found');
-                return;
-            }
-            
+            const splitter = ImportSDKPlugins ? ImportSDKPlugins.getPlugin('fileSplitter') : null;
             const progressBar = document.getElementById('splitting-progress');
-            console.log('progress bar found:', !!progressBar);
             
             progressBar.style.width = '0%';
             
             try {
-                console.log('Starting to process chunks...');
-                const totalChunks = window.currentChunks.length;
-                let processedChunks = 0;
-                
-                const results = await splitter.processChunks(window.currentChunks, null, {
-                    ...splitter.config,
-                    onProgress: (chunkNumber) => {
-                        processedChunks++;
-                        const progress = (processedChunks / totalChunks) * 100;
-                        progressBar.style.width = progress + '%';
-                        console.log(`Progress: ${processedChunks}/${totalChunks} chunks (${progress.toFixed(1)}%)`);
-                    }
-                });
-                console.log('Processing completed:', results);
+                const results = await splitter.processChunks(window.currentChunks, null, splitter.config);
                 
                 // Update progress
                 progressBar.style.width = '100%';
@@ -990,18 +948,6 @@
         
         // Import Orchestrator Demo
         function startOrchestratedImport() {
-            // Clear any existing interval
-            if (window.orchestratorInterval) {
-                clearInterval(window.orchestratorInterval);
-            }
-            
-            // Reset orchestrator state
-            window.orchestratorState = {
-                isPaused: false,
-                isCancelled: false,
-                progress: 0
-            };
-            
             const config = {
                 autoRetry: document.getElementById('auto-retry').checked,
                 pauseOnError: document.getElementById('pause-on-error').checked,
@@ -1019,85 +965,37 @@
             updateImportStatus('running');
             logOrchestrator('info', 'Starting orchestrated import with configuration:', config);
             
-            // Simulate import progress with pause/resume support
-            window.orchestratorInterval = setInterval(() => {
-                // Check if paused or cancelled
-                if (window.orchestratorState.isPaused) {
-                    return; // Skip this iteration but don't clear interval
-                }
-                
-                if (window.orchestratorState.isCancelled) {
-                    clearInterval(window.orchestratorInterval);
-                    updateImportStatus('idle');
-                    logOrchestrator('error', 'Import cancelled');
-                    return;
-                }
-                
-                window.orchestratorState.progress += Math.random() * 10;
-                const progress = window.orchestratorState.progress;
+            // Simulate import progress
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += Math.random() * 10;
                 
                 if (progress >= 100) {
-                    clearInterval(window.orchestratorInterval);
+                    clearInterval(progressInterval);
                     updateImportStatus('completed');
                     logOrchestrator('success', 'Import completed successfully');
                 } else {
                     // Simulate occasional errors
                     if (Math.random() < 0.2) {
                         logOrchestrator('warning', `Simulated error at ${progress.toFixed(1)}%`);
-                        
-                        // Check if should pause on error
-                        if (config.pauseOnError && Math.random() < 0.3) {
-                            window.orchestratorState.isPaused = true;
-                            updateImportStatus('paused');
-                            logOrchestrator('warning', 'Auto-paused due to high error rate');
-                        }
                     }
                 }
             }, 500);
         }
         
         function pauseImport() {
-            if (window.orchestratorState) {
-                window.orchestratorState.isPaused = true;
-                updateImportStatus('paused');
-                logOrchestrator('warning', 'Import paused by user');
-            }
+            updateImportStatus('paused');
+            logOrchestrator('warning', 'Import paused by user');
         }
         
         function resumeImport() {
-            if (window.orchestratorState) {
-                window.orchestratorState.isPaused = false;
-                updateImportStatus('running');
-                logOrchestrator('info', 'Import resumed by user');
-            }
+            updateImportStatus('running');
+            logOrchestrator('info', 'Import resumed by user');
         }
         
         function cancelImport() {
-            if (window.orchestratorState) {
-                window.orchestratorState.isCancelled = true;
-                // Immediate UI feedback
-                updateImportStatus('idle');
-                logOrchestrator('error', 'Import cancelled by user');
-                
-                // Clear the interval immediately for faster response
-                if (window.orchestratorInterval) {
-                    clearInterval(window.orchestratorInterval);
-                    window.orchestratorInterval = null;
-                }
-                
-                // Add a visual indicator in the log
-                setTimeout(() => {
-                    logOrchestrator('info', 'Import process has been stopped');
-                }, 100);
-            }
-        }
-        
-        function clearOrchestratorLog() {
-            const logDiv = document.getElementById('orchestrator-log');
-            if (logDiv) {
-                logDiv.innerHTML = '';
-                logOrchestrator('info', 'Log cleared');
-            }
+            updateImportStatus('idle');
+            logOrchestrator('error', 'Import cancelled by user');
         }
         
         function updateImportStatus(status) {

@@ -680,10 +680,11 @@ ImportSDK.use({
      * Generate performance recommendations
      */
     generateRecommendations(metrics) {
+        console.log('generateRecommendations called with metrics:', metrics);
         const recommendations = [];
         
         // Performance recommendations
-        if (metrics.performance.averageProcessingTime > 100) {
+        if (metrics.performance && metrics.performance.averageProcessingTime > 100) {
             recommendations.push({
                 type: 'performance',
                 priority: 'high',
@@ -693,7 +694,7 @@ ImportSDK.use({
         }
         
         // Data quality recommendations
-        if (metrics.dataQuality.completeness < 80) {
+        if (metrics.dataQuality && metrics.dataQuality.completeness < 80) {
             recommendations.push({
                 type: 'data_quality',
                 priority: 'medium',
@@ -703,18 +704,46 @@ ImportSDK.use({
         }
         
         // Error pattern recommendations
-        const highFrequencyErrors = Object.entries(metrics.errorPatterns)
-            .filter(([pattern, stats]) => stats.count > 10);
-        
-        if (highFrequencyErrors.length > 0) {
-            recommendations.push({
-                type: 'error_pattern',
-                priority: 'high',
-                message: `Found ${highFrequencyErrors.length} high-frequency error patterns`,
-                action: 'Address common error patterns to improve success rate'
+        if (metrics.errorPatterns) {
+            const highFrequencyErrors = Object.entries(metrics.errorPatterns)
+                .filter(([pattern, stats]) => stats.count > 10)
+                .sort((a, b) => b[1].count - a[1].count); // Sort by frequency
+            
+            highFrequencyErrors.forEach(([pattern, stats]) => {
+                recommendations.push({
+                    type: 'error_pattern',
+                    priority: 'high',
+                    message: `Error pattern "${pattern}" occurred ${stats.count} times (${((stats.count / metrics.totalProcessed || 1) * 100).toFixed(1)}% of records)`,
+                    details: {
+                        pattern: pattern,
+                        frequency: stats.count,
+                        percentage: ((stats.count / metrics.totalProcessed || 1) * 100).toFixed(1),
+                        samples: stats.samples || [],
+                        suggestions: stats.suggestions || []
+                    },
+                    action: `Focus on fixing ${pattern} errors - check data validation and input formatting`
+                });
             });
         }
         
+        // Add test recommendations for demo purposes
+        if (recommendations.length === 0 && metrics.fieldStats && Object.keys(metrics.fieldStats).length > 0) {
+            recommendations.push({
+                type: 'optimization',
+                priority: 'low',
+                message: 'Consider enabling data validation for better quality control',
+                action: 'Configure validation rules in the plugin settings'
+            });
+            
+            recommendations.push({
+                type: 'monitoring',
+                priority: 'medium',
+                message: 'Real-time monitoring is active - track your import performance',
+                action: 'Monitor the metrics dashboard for insights'
+            });
+        }
+        
+        console.log('Generated recommendations:', recommendations);
         return recommendations;
     },
     
@@ -834,8 +863,10 @@ ImportSDK.use({
     },
     
     setupRealTimeUpdates(sdk, config) {
+        console.log('setupRealTimeUpdates called with config:', config);
         setInterval(() => {
             const metrics = this.getMetrics(sdk, config);
+            console.log('Emitting metrics event:', metrics);
             
             // Emit custom event with metrics
             const event = new CustomEvent('importSDKMetricsUpdate', {
