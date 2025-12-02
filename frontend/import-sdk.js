@@ -417,7 +417,7 @@ class ImportSDK {
     }
 
     /**
-     * Send error sample to metrics backend (one sample per unique error message)
+     * Send error sample to metrics backend (groups similar errors by pattern)
      * @param {string} errorMessage - Error message
      * @param {string} errorType - Type of error (validation, api, network, etc.)
      * @param {Object} errorData - Additional error data
@@ -427,24 +427,89 @@ class ImportSDK {
             return;
         }
 
-        // Track unique error messages to avoid spamming
+        // Track unique error patterns to avoid spamming
         if (!this.uniqueErrors) {
             this.uniqueErrors = new Set();
         }
-
-        // Create a unique key for this error type and message
-        const errorKey = `${errorType}:${errorMessage}`;
         
-        // Only send if we haven't seen this error before
+        // Track error pattern counts
+        if (!this.errorPatternCounts) {
+            this.errorPatternCounts = new Map();
+        }
+
+        // Extract error pattern by replacing specific values with placeholders
+        const errorPattern = this.extractErrorPattern(errorMessage);
+        
+        // Create a unique key for this error type and pattern
+        const errorKey = `${errorType}:${errorPattern}`;
+        
+        // Increment count for this pattern
+        const currentCount = this.errorPatternCounts.get(errorKey) || 0;
+        this.errorPatternCounts.set(errorKey, currentCount + 1);
+        
+        // Only send if we haven't seen this error pattern before
         if (!this.uniqueErrors.has(errorKey)) {
             this.uniqueErrors.add(errorKey);
             
             await this.sendAuditLog('error', errorMessage, {
                 errorType: errorType,
+                pattern: errorPattern,
                 sample: true,
+                count: 1,
                 data: errorData
             });
+        } else {
+            // Update the count for existing patterns (send periodic updates)
+            if (currentCount % 10 === 0) { // Send update every 10 occurrences
+                await this.sendAuditLog('warning', `Error pattern repeated: ${errorPattern}`, {
+                    errorType: errorType,
+                    pattern: errorPattern,
+                    sample: false,
+                    count: currentCount,
+                    data: errorData
+                });
+            }
         }
+    }
+
+    /**
+     * Extract error pattern by replacing specific values with placeholders
+     * @param {string} errorMessage - Original error message
+     * @returns {string} - Patternized error message
+     */
+    extractErrorPattern(errorMessage) {
+        // Common patterns to replace with placeholders
+        const patterns = [
+            // Tank numbers, IDs, codes like 'TANK_000010', 'BIN_000008', 'ABC123'
+            { regex: /\b[A-Z_]+_\d+\b/g, placeholder: '{ID}' },
+            
+            // Quoted values like 'TANK_000010'
+            { regex: /'[^']+'/g, placeholder: '{VALUE}' },
+            
+            // Numbers like 12345, 67890
+            { regex: /\b\d{4,}\b/g, placeholder: '{NUMBER}' },
+            
+            // Email addresses
+            { regex: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, placeholder: '{EMAIL}' },
+            
+            // URLs
+            { regex: /https?:\/\/[^\s]+/g, placeholder: '{URL}' },
+            
+            // File paths
+            { regex: /\/[^\s]+/g, placeholder: '{PATH}' },
+            
+            // UUIDs
+            { regex: /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, placeholder: '{UUID}' }
+        ];
+
+        let pattern = errorMessage;
+        
+        // Apply each pattern replacement
+        patterns.forEach(({ regex, placeholder }) => {
+            pattern = pattern.replace(regex, placeholder);
+        });
+        
+        return pattern;
     }
 
     /**
@@ -751,6 +816,7 @@ class ImportSDK {
         
         // Reset unique errors tracking for new import
         this.uniqueErrors = new Set();
+        this.errorPatternCounts = new Map();
     }
 
     /**
@@ -1993,6 +2059,22 @@ class ImportSDK {
             throughput: finalMetrics.rowsPerSecond,
             performanceScore: finalMetrics.performanceScore
         });
+
+        // Send error pattern summary if there were errors
+        if (this.errorPatternCounts && this.errorPatternCounts.size > 0) {
+            const errorSummary = Array.from(this.errorPatternCounts.entries())
+                .map(([key, count]) => {
+                    const [errorType, pattern] = key.split(':', 2);
+                    return { errorType, pattern, count };
+                })
+                .sort((a, b) => b.count - a.count); // Sort by frequency
+            
+            this.sendAuditLog('warning', `Error patterns summary: ${errorSummary.length} unique patterns`, {
+                errorSummary,
+                totalPatterns: errorSummary.length,
+                totalErrors: Array.from(this.errorPatternCounts.values()).reduce((sum, count) => sum + count, 0)
+            });
+        }
 
         // Call metrics callback if provided
         if (this.config.onMetrics) {
