@@ -278,7 +278,7 @@ app.get('/imports/:id', (req, res) => {
     const relatedLogs = storage.auditLogs.filter(log => log.importId === req.params.id);
     
     res.render('import-details', { 
-        import: importRecord,
+        importRecord: importRecord,
         logs: relatedLogs,
         title: `Import: ${importRecord.fileName}`
     });

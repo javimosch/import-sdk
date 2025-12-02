@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= import.fileName || 'Import Details' %> - ImportSDK Metrics</title>
+    <title><%= importRecord.fileName || 'Import Details' %> - ImportSDK Metrics</title>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet" type="text/css" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -39,22 +39,22 @@
                     <ul>
                         <li><a href="/">Dashboard</a></li>
                         <li><a href="/imports">Imports</a></li>
-                        <li class="text-base-content/70"><%= import.fileName || 'Unknown File' %></li>
+                        <li class="text-base-content/70"><%= importRecord.fileName || 'Unknown File' %></li>
                     </ul>
                 </div>
                 
                 <div class="flex items-start justify-between">
                     <div>
                         <h1 class="text-4xl font-bold text-base-content mb-2">
-                            📄 <%= import.fileName || 'Unknown File' %>
+                            📄 <%= importRecord.fileName || 'Unknown File' %>
                         </h1>
                         <p class="text-base-content/70 text-lg mb-4">
-                            Import completed on <%= new Date(import.timestamp).toLocaleString() %>
+                            Import completed on <%= new Date(importRecord.timestamp).toLocaleString() %>
                         </p>
                         <div class="flex gap-2">
-                            <div class="badge badge-outline">ID: <%= import.id %></div>
-                            <% if (import.sessionId) { %>
-                                <div class="badge badge-outline">Session: <%= import.sessionId %></div>
+                            <div class="badge badge-outline">ID: <%= importRecord.id %></div>
+                            <% if (importRecord.sessionId) { %>
+                                <div class="badge badge-outline">Session: <%= importRecord.sessionId %></div>
                             <% } %>
                         </div>
                     </div>
@@ -70,26 +70,26 @@
                         <div class="space-y-2">
                             <div class="flex justify-between">
                                 <span class="text-base-content/70">Total Rows:</span>
-                                <span class="font-semibold"><%= (import.stats?.totalCount || 0).toLocaleString() %></span>
+                                <span class="font-semibold"><%= (importRecord.stats && importRecord.stats.totalCount || 0).toLocaleString() %></span>
                             </div>
                             <div class="flex justify-between">
                                 <span class="text-base-content/70">Success:</span>
-                                <span class="text-success font-semibold"><%= (import.stats?.successCount || 0).toLocaleString() %></span>
+                                <span class="text-success font-semibold"><%= (importRecord.stats && importRecord.stats.successCount || 0).toLocaleString() %></span>
                             </div>
                             <div class="flex justify-between">
                                 <span class="text-base-content/70">Errors:</span>
-                                <span class="text-error font-semibold"><%= (import.stats?.errorCount || 0).toLocaleString() %></span>
+                                <span class="text-error font-semibold"><%= (importRecord.stats && importRecord.stats.errorCount || 0).toLocaleString() %></span>
                             </div>
                             <div class="flex justify-between">
                                 <span class="text-base-content/70">Filtered:</span>
-                                <span class="text-warning font-semibold"><%= (import.stats?.filteredCount || 0).toLocaleString() %></span>
+                                <span class="text-warning font-semibold"><%= (importRecord.stats && importRecord.stats.filteredCount || 0).toLocaleString() %></span>
                             </div>
                         </div>
                         <div class="divider my-2"></div>
                         <div class="flex justify-between font-bold">
                             <span>Success Rate:</span>
                             <span class="text-success">
-                                <%= (((import.stats?.successCount || 0) / Math.max(1, import.stats?.totalCount || 1)) * 100).toFixed(1) %>%
+                                <%= (((importRecord.stats && importRecord.stats.successCount || 0) / Math.max(1, importRecord.stats && importRecord.stats.totalCount || 1)) * 100).toFixed(1) %>%
                             </span>
                         </div>
                     </div>
@@ -103,24 +103,24 @@
                             <div class="flex justify-between">
                                 <span class="text-base-content/70">Duration:</span>
                                 <span class="font-semibold">
-                                    <%= ((import.metrics?.totalDurationSeconds || 0) < 60 ? 
-                                        (import.metrics?.totalDurationSeconds || 0).toFixed(1) + 's' : 
-                                        Math.floor((import.metrics?.totalDurationSeconds || 0) / 60) + 'm ' + 
-                                        ((import.metrics?.totalDurationSeconds || 0) % 60).toFixed(0) + 's') %>
+                                    <%= ((importRecord.metrics && importRecord.metrics.totalDurationSeconds || 0) < 60 ? 
+                                        (importRecord.metrics && importRecord.metrics.totalDurationSeconds || 0).toFixed(1) + 's' : 
+                                        Math.floor((importRecord.metrics && importRecord.metrics.totalDurationSeconds || 0) / 60) + 'm ' + 
+                                        ((importRecord.metrics && importRecord.metrics.totalDurationSeconds || 0) % 60).toFixed(0) + 's') %>
                                 </span>
                             </div>
                             <div class="flex justify-between">
                                 <span class="text-base-content/70">Throughput:</span>
-                                <span class="text-accent font-semibold"><%= (import.metrics?.rowsPerSecond || 0).toFixed(1) %> rows/s</span>
+                                <span class="text-accent font-semibold"><%= (importRecord.metrics && importRecord.metrics.rowsPerSecond || 0).toFixed(1) %> rows/s</span>
                             </div>
                             <div class="flex justify-between">
                                 <span class="text-base-content/70">Efficiency:</span>
-                                <span class="font-semibold"><%= (import.metrics?.efficiency || 0).toFixed(1) %>%</span>
+                                <span class="font-semibold"><%= (importRecord.metrics && importRecord.metrics.efficiency || 0).toFixed(1) %>%</span>
                             </div>
-                            <% if (import.metrics?.performanceScore) { %>
+                            <% if (importRecord.metrics && importRecord.metrics.performanceScore) { %>
                                 <div class="flex justify-between">
                                     <span class="text-base-content/70">Score:</span>
-                                    <span class="font-semibold"><%= Math.round(import.metrics.performanceScore) %></span>
+                                    <span class="font-semibold"><%= Math.round(importRecord.metrics.performanceScore) %></span>
                                 </div>
                             <% } %>
                         </div>
@@ -132,26 +132,26 @@
                     <div class="card-body">
                         <h3 class="card-title text-lg">💾 Resource Usage</h3>
                         <div class="space-y-2">
-                            <% if (import.metrics?.fileSize) { %>
+                            <% if (importRecord.metrics && importRecord.metrics.fileSize) { %>
                                 <div class="flex justify-between">
                                     <span class="text-base-content/70">File Size:</span>
                                     <span class="font-semibold">
-                                        <%= (import.metrics.fileSize / 1024 / 1024).toFixed(1) %>MB
+                                        <%= (importRecord.metrics.fileSize / 1024 / 1024).toFixed(1) %>MB
                                     </span>
                                 </div>
                             <% } %>
-                            <% if (import.metrics?.memoryUsageEstimate) { %>
+                            <% if (importRecord.metrics && importRecord.metrics.memoryUsageEstimate) { %>
                                 <div class="flex justify-between">
                                     <span class="text-base-content/70">Memory:</span>
                                     <span class="font-semibold">
-                                        <%= (import.metrics.memoryUsageEstimate / 1024 / 1024).toFixed(1) %>MB
+                                        <%= (importRecord.metrics.memoryUsageEstimate / 1024 / 1024).toFixed(1) %>MB
                                     </span>
                                 </div>
                             <% } %>
-                            <% if (import.metrics?.cpuLoadEstimate) { %>
+                            <% if (importRecord.metrics && importRecord.metrics.cpuLoadEstimate) { %>
                                 <div class="flex justify-between">
                                     <span class="text-base-content/70">CPU Load:</span>
-                                    <span class="font-semibold"><%= import.metrics.cpuLoadEstimate.toFixed(1) %>%</span>
+                                    <span class="font-semibold"><%= importRecord.metrics.cpuLoadEstimate.toFixed(1) %>%</span>
                                 </div>
                             <% } %>
                         </div>
@@ -163,14 +163,14 @@
                     <div class="card-body">
                         <h3 class="card-title text-lg">🌐 API Statistics</h3>
                         <div class="space-y-2">
-                            <% if (import.metrics?.apiCalls) { %>
+                            <% if (importRecord.metrics && importRecord.metrics.apiCalls) { %>
                                 <div class="flex justify-between">
                                     <span class="text-base-content/70">API Calls:</span>
-                                    <span class="font-semibold"><%= import.metrics.apiCalls %></span>
+                                    <span class="font-semibold"><%= importRecord.metrics.apiCalls %></span>
                                 </div>
                                 <div class="flex justify-between">
                                     <span class="text-base-content/70">Avg Latency:</span>
-                                    <span class="font-semibold"><%= (import.metrics.avgApiLatency || 0).toFixed(0) %>ms</span>
+                                    <span class="font-semibold"><%= (importRecord.metrics.avgApiLatency || 0).toFixed(0) %>ms</span>
                                 </div>
                             <% } else { %>
                                 <div class="text-center text-base-content/50 py-4">
@@ -183,12 +183,12 @@
             </div>
 
             <!-- Bottlenecks -->
-            <% if (import.metrics?.bottlenecks && import.metrics.bottlenecks.length > 0) { %>
+            <% if (importRecord.metrics && importRecord.metrics.bottlenecks && importRecord.metrics.bottlenecks.length > 0) { %>
                 <div class="card bg-base-100 shadow-lg mb-8">
                     <div class="card-body">
                         <h3 class="card-title mb-4">🚨 Performance Bottlenecks</h3>
                         <div class="space-y-3">
-                            <% import.metrics.bottlenecks.forEach(function(bottleneck) { %>
+                            <% importRecord.metrics.bottlenecks.forEach(function(bottleneck) { %>
                                 <div class="alert alert-warning">
                                     <div class="flex-1">
                                         <span class="font-medium"><%= bottleneck %></span>
@@ -208,10 +208,7 @@
                         <div class="space-y-2 max-h-96 overflow-y-auto">
                             <% logs.forEach(function(log) { %>
                                 <div class="flex items-start gap-3 p-3 bg-base-200 rounded-lg">
-                                    <div class="badge badge-sm mt-1 
-                                        <%= log.level === 'error' ? 'badge-error' : 
-                                            log.level === 'warning' ? 'badge-warning' : 
-                                            log.level === 'success' ? 'badge-success' : 'badge-info' %>">
+                                    <div class="badge badge-sm mt-1 <%= log.level === 'error' ? 'badge-error' : log.level === 'warning' ? 'badge-warning' : log.level === 'success' ? 'badge-success' : 'badge-info' %>">
                                         <%= log.level %>
                                     </div>
                                     <div class="flex-1">
