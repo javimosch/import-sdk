@@ -6,9 +6,9 @@ A lightweight, reusable JavaScript library for importing CSV files in chunks to 
 
 [ImportSDK Website](https://javimosch.github.io/import-sdk)
 
-[ImportSDK Online Documentation](https://javimosch.github.io/import-sdk/documentation)
+[ImportSDK Online Documentation](https://javimosch.github.io/import-sdk/documentation.html)
 
-[ImportSDK Online Examples](https://javimosch.github.io/import-sdk/frontend/index)
+[ImportSDK Online Examples](https://javimosch.github.io/import-sdk/frontend/index.html)
 
 [ImportSDK GIT Documentation](frontend/README.md)
 
