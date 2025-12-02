@@ -784,6 +784,205 @@ const validator = ImportSDKPlugins.getPlugin('csvFileValidator');
 console.log(validator.config);</pre>
                             </div>
                         </div>
+
+                        <!-- V2 Enhanced Plugins -->
+                        <div class="bg-white rounded-xl shadow-lg p-8">
+                            <h3 class="text-2xl font-semibold text-gray-800 mb-4">🚀 V2 Enhanced Plugins</h3>
+                            <p class="text-gray-600 mb-4">Next-generation plugins providing advanced error handling, metrics tracking, file processing, and import orchestration capabilities.</p>
+                            
+                            <!-- Error Enhancement Plugin -->
+                            <div class="mb-8">
+                                <h4 class="text-xl font-semibold text-gray-800 mb-3">🔍 Error Enhancement Plugin</h4>
+                                <p class="text-gray-600 mb-4">Smart error categorization, severity levels, actionable suggestions, and detailed modal reports.</p>
+                                
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                                    <div>
+                                        <h5 class="font-semibold text-gray-700 mb-2">Key Features</h5>
+                                        <ul class="text-sm text-gray-600 space-y-1">
+                                            <li>✅ Automatic error pattern detection</li>
+                                            <li>✅ Severity level classification (Critical, High, Medium, Low)</li>
+                                            <li>✅ Actionable suggestions for each error type</li>
+                                            <li>✅ Interactive error modal with filtering</li>
+                                            <li>✅ Error export capabilities (CSV/JSON)</li>
+                                            <li>✅ Error timeline and frequency analysis</li>
+                                        </ul>
+                                    </div>
+                                    <div>
+                                        <h5 class="font-semibold text-gray-700 mb-2">When to Use</h5>
+                                        <ul class="text-sm text-gray-600 space-y-1">
+                                            <li>• Complex validation rules with multiple error types</li>
+                                            <li>• Need better error reporting for end users</li>
+                                            <li>• Want actionable insights from error patterns</li>
+                                            <li>• Large datasets with frequent error occurrences</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                
+                                <div class="mockup-code">
+                                    <pre class="px-4 py-3">// Error enhancement is automatically loaded
+// Configure error categorization
+ImportSDKV2.configureV2({
+    'errorEnhancer': {
+        showModal: true,
+        maxErrors: 1000,
+        groupSimilarErrors: true
+    }
+});
+
+// Access enhanced error features
+window.ImportSDKV2.exportCurrentErrors('csv');
+window.ImportSDKV2.generateErrorSummary();</pre>
+                                </div>
+                            </div>
+
+                            <!-- Enhanced Metrics Plugin -->
+                            <div class="mb-8">
+                                <h4 class="text-xl font-semibold text-gray-800 mb-3">📈 Enhanced Metrics Plugin</h4>
+                                <p class="text-gray-600 mb-4">Comprehensive field statistics, data quality scoring, performance tracking, and real-time monitoring with smart recommendations.</p>
+                                
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                                    <div>
+                                        <h5 class="font-semibold text-gray-700 mb-2">Key Features</h5>
+                                        <ul class="text-sm text-gray-600 space-y-1">
+                                            <li>✅ Real-time field statistics tracking</li>
+                                            <li>✅ Data quality scoring (completeness, consistency, validity)</li>
+                                            <li>✅ Performance metrics and processing times</li>
+                                            <li>✅ Error pattern analysis and frequency</li>
+                                            <li>✅ Smart recommendations based on metrics</li>
+                                            <li>✅ Live dashboard updates</li>
+                                        </ul>
+                                    </div>
+                                    <div>
+                                        <h5 class="font-semibold text-gray-700 mb-2">When to Use</h5>
+                                        <ul class="text-sm text-gray-600 space-y-1">
+                                            <li>• Monitoring data quality in production</li>
+                                            <li>• Performance optimization and bottleneck identification</li>
+                                            <li>• Need insights into data processing patterns</li>
+                                            <li>• Quality assurance and data governance</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                
+                                <div class="mockup-code">
+                                    <pre class="px-4 py-3">// Enhanced metrics is automatically loaded
+// Configure metrics tracking
+ImportSDKV2.configureV2({
+    'enhancedMetrics': {
+        trackFieldStats: true,
+        trackErrorPatterns: true,
+        trackProcessingTimes: true,
+        realTimeUpdates: true,
+        updateInterval: 1000
+    }
+});
+
+// Enable real-time monitoring
+ImportSDKV2.enableRealTimeMonitoring((metrics) => {
+    console.log('Live metrics:', metrics);
+    updateDashboard(metrics);
+});</pre>
+                                </div>
+                            </div>
+
+                            <!-- File Splitting Plugin -->
+                            <div class="mb-8">
+                                <h4 class="text-xl font-semibold text-gray-800 mb-3">📁 File Splitting Plugin</h4>
+                                <p class="text-gray-600 mb-4">Automatic large file splitting, intelligent chunk processing, memory optimization, and progress tracking.</p>
+                                
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                                    <div>
+                                        <h5 class="font-semibold text-gray-700 mb-2">Key Features</h5>
+                                        <ul class="text-sm text-gray-600 space-y-1">
+                                            <li>✅ Automatic file size detection and splitting</li>
+                                            <li>✅ Configurable chunk sizes and strategies</li>
+                                            <li>✅ Parallel and sequential processing modes</li>
+                                            <li>✅ Memory optimization for large files</li>
+                                            <li>✅ Real-time progress tracking</li>
+                                            <li>✅ Chunk-level error handling</li>
+                                        </ul>
+                                    </div>
+                                    <div>
+                                        <h5 class="font-semibold text-gray-700 mb-2">When to Use</h5>
+                                        <ul class="text-sm text-gray-600 space-y-1">
+                                            <li>• Processing files larger than 100MB</li>
+                                            <li>• Memory constraints during file processing</li>
+                                            <li>• Need better control over large file imports</li>
+                                            <li>• Want to process files in parallel chunks</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                
+                                <div class="mockup-code">
+                                    <pre class="px-4 py-3">// File splitting is automatically loaded
+// Configure splitting behavior
+ImportSDKV2.configureV2({
+    'fileSplitter': {
+        maxFileSize: 50 * 1024 * 1024, // 50MB
+        maxLinesPerChunk: 10000,
+        parallelProcessing: true,
+        progressCallback: (progress) => {
+            console.log(`Processing: ${progress}%`);
+        }
+    }
+});
+
+// Manual file splitting
+const splitter = ImportSDK.plugins.find(p => p.name === 'fileSplitter');
+const chunks = await splitter.split(largeFile);
+const results = await splitter.processChunks(chunks);</pre>
+                                </div>
+                            </div>
+
+                            <!-- Import Orchestrator Plugin -->
+                            <div class="mb-8">
+                                <h4 class="text-xl font-semibold text-gray-800 mb-3">🎮 Import Orchestrator Plugin</h4>
+                                <p class="text-gray-600 mb-4">Complete import lifecycle management with auto-retry, intelligent pausing, progress monitoring, and checkpoint recovery.</p>
+                                
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                                    <div>
+                                        <h5 class="font-semibold text-gray-700 mb-2">Key Features</h5>
+                                        <ul class="text-sm text-gray-600 space-y-1">
+                                            <li>✅ Import lifecycle management</li>
+                                            <li>✅ Automatic retry with exponential backoff</li>
+                                            <li>✅ Smart pausing on high error rates</li>
+                                            <li>✅ Progress monitoring and checkpoints</li>
+                                            <li>✅ Resume capability after interruptions</li>
+                                            <li>✅ Large file confirmation dialogs</li>
+                                        </ul>
+                                    </div>
+                                    <div>
+                                        <h5 class="font-semibold text-gray-700 mb-2">When to Use</h5>
+                                        <ul class="text-sm text-gray-600 space-y-1">
+                                            <li>• Critical production imports requiring reliability</li>
+                                            <li>• Unstable network conditions</li>
+                                            <li>• Large imports that might be interrupted</li>
+                                            <li>• Need fine-grained control over import process</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                
+                                <div class="mockup-code">
+                                    <pre class="px-4 py-3">// Import orchestrator is automatically loaded
+// Configure orchestration behavior
+ImportSDKV2.configureV2({
+    'importOrchestrator': {
+        autoRetry: true,
+        maxRetries: 3,
+        pauseOnError: true,
+        enableResume: true,
+        checkpointInterval: 1000,
+        progressUpdates: true
+    }
+});
+
+// Orchestrator controls
+ImportSDKV2.pauseImport();
+ImportSDKV2.resumeImport();
+ImportSDKV2.cancelImport();
+ImportSDKV2.getImportStatus();</pre>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
