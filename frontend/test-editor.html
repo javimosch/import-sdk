@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Import SDK Test Editor</title>
+    <link rel="stylesheet" href="import-ui.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .editor-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .panel-header {
+            background: #2d3748;
+            color: white;
+            padding: 15px 20px;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-content {
+            padding: 0;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            max-width: 1400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #3182ce;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2c5282;
+        }
+
+        .btn-secondary {
+            background: #718096;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #4a5568;
+        }
+
+        .btn-danger {
+            background: #e53e3e;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c53030;
+        }
+
+        .CodeMirror {
+            height: 500px;
+            font-size: 14px;
+        }
+
+        .status-bar {
+            background: #f7fafc;
+            padding: 10px 20px;
+            border-top: 1px solid #e2e8f0;
+            font-size: 12px;
+            color: #4a5568;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-success {
+            background: #48bb78;
+        }
+
+        .status-error {
+            background: #e53e3e;
+        }
+
+        .status-warning {
+            background: #ed8936;
+        }
+
+        .error-message {
+            background: #fed7d7;
+            color: #c53030;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border-left: 4px solid #e53e3e;
+        }
+
+        .success-message {
+            background: #c6f6d5;
+            color: #276749;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border-left: 4px solid #48bb78;
+        }
+
+        @media (max-width: 768px) {
+            .editor-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #2d3748; margin: 0 0 10px 0;">Import SDK Test Editor</h1>
+        <p style="color: #718096; margin: 0;">Customize and test the ImportSDK configuration in real-time</p>
+    </div>
+
+    <div class="controls">
+        <button class="btn btn-primary" onclick="initializeSDK()">Initialize SDK</button>
+        <button class="btn btn-secondary" onclick="resetConfig()">Reset Config</button>
+        <button class="btn btn-secondary" onclick="loadPreset('basic')">Load Basic Preset</button>
+        <button class="btn btn-secondary" onclick="loadPreset('advanced')">Load Advanced Preset</button>
+        <button class="btn btn-danger" onclick="clearSDK()">Clear SDK</button>
+    </div>
+
+    <div class="controls" style="margin-top: 10px;">
+        <button class="btn btn-secondary" onclick="saveCurrentConfig()">Save Current Config</button>
+        <button class="btn btn-secondary" onclick="showSavedConfigs()">Load Saved Config</button>
+        <button class="btn btn-secondary" onclick="manageSavedConfigs()">Manage Saved</button>
+        <button class="btn btn-secondary" onclick="importConfigs()">Import Configs</button>
+    </div>
+
+    <div class="editor-container">
+        <div class="panel">
+            <div class="panel-header">
+                <span>Configuration Editor</span>
+                <span id="config-status" class="status-indicator status-success"></span>
+            </div>
+            <div class="panel-content">
+                <textarea id="config-editor"></textarea>
+            </div>
+            <div class="status-bar">
+                <span id="editor-status">Ready</span>
+                <span id="line-info">Line 1, Col 1 | Saved configs: <span id="saved-count">0</span></span>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">
+                <span>Import SDK Preview</span>
+                <span id="sdk-status" class="status-indicator status-warning"></span>
+            </div>
+            <div class="panel-content">
+                <div id="import-container" style="min-height: 500px; padding: 20px;">
+                    <div style="text-align: center; color: #718096; padding: 40px;">
+                        Click "Initialize SDK" to start testing
+                    </div>
+                </div>
+            </div>
+            <div class="status-bar">
+                <span id="sdk-info">Not initialized</span>
+                <span id="last-action">No actions</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="message-container"></div>
+
+    <script src="import-sdk.js"></script>
+    <script>
+        let editor;
+        let currentSDK = null;
+
+        // Default configuration
+        const defaultConfig = {
+            // API Configuration
+            apiEndpoint: 'http://localhost:3011/geored/bin/service/import',
+            chunkSize: 100,
+            updateByTankNumber: false,
+
+            // Enable metrics backend
+            metricsBackend: {
+                enabled: true,
+                baseURL: 'http://localhost:3012',
+                includeProgress: true
+            },
+
+            // Multiple File Mappings - Auto-selects based on filename
+            fileMappings: [
+                {
+                    name: 'Standard Format',
+                    pattern: /test\.csv$/,
+                    fieldMapping: {},
+                    transformers: {
+                        typeId: (value) => parseInt(value) || null,
+                        latitude: (value) => parseFloat(value) || null,
+                        longitude: (value) => parseFloat(value) || null
+                    }
+                },
+                {
+                    name: 'Custom Format',
+                    pattern: /test2\.csv$/,
+                    fieldMapping: {
+                        'Tank ID': 'tankNumber',
+                        'Type': 'typeId',
+                        'Location': 'city',
+                        'Lat': 'latitude',
+                        'Long': 'longitude'
+                    },
+                    transformers: {
+                        typeId: (value) => parseInt(value) || null,
+                        latitude: (value) => parseFloat(value) || null,
+                        longitude: (value) => parseFloat(value) || null
+                    },
+                    validate: {
+                        latitude: [(v) => !!v, "Latitude is required"],
+                        tankNumber: [(v) => !!v, "Tank Number is required"]
+                    }
+                }
+            ],
+
+            // Internationalization (i18n)
+            locale: 'en',
+            translations: {
+                fr: {
+                    uploadPrompt: "Cliquez pour télécharger ou glissez-déposez",
+                    uploadHint: "Fichiers CSV uniquement",
+                    checkFile: "Vérifier le fichier",
+                    startImport: "Démarrer l'importation",
+                    importing: "Importation...",
+                    checking: "Vérification...",
+                    progressTitle: "Progression",
+                    importProgress: "Progression de l'importation",
+                    validationProgress: "Progression de la validation",
+                    success: "Succès",
+                    errors: "Erreurs",
+                    total: "Total",
+                    logs: "Journaux",
+                    clearLogs: "Effacer",
+                    ready: "Prêt à démarrer...",
+                    fileSelected: "Fichier sélectionné : {filename} ({size} KB){mapping}",
+                    mappingInfo: " (Cartographie : {name})",
+                    fileRemoved: "Fichier supprimé.",
+                    logsCleared: "Journaux effacés...",
+                    parsingComplete: "Analyse terminée. Finalisation...",
+                    importFinished: "Importation terminée.",
+                    validationFinished: "Validation terminée.",
+                    errorCsvOnly: "Veuillez télécharger un fichier CSV.",
+                    usingMapping: "Utilisation de la cartographie : {name}",
+                    parsingError: "Erreur d'analyse : {message}",
+                    validationError: "Erreur de validation : {error}",
+                    networkError: "Erreur réseau : {message}",
+                    serverError: "Erreur serveur : {status} {statusText}",
+                    batchValidationFailed: "Échec de la validation du lot : {status}",
+                    handlerError: "Erreur du gestionnaire : {message}",
+                    invalidHandlerResponse: "Réponse invalide du gestionnaire, utilisation des valeurs par défaut",
+                    sendHandlerError: "Erreur du gestionnaire d'envoi : {message}"
+                }
+            },
+
+            // Fallback mapping (if no pattern matches)
+            fieldMapping: {},
+            transformers: {},
+
+            // Callbacks
+            onProgress: (stats) => {
+                console.log('Progress:', stats);
+                updateSDKInfo('Processing...', 'success');
+            },
+            onComplete: (result) => {
+                console.log('Import complete:', result);
+                updateSDKInfo(`Complete: ${result.successCount} success, ${result.errorCount} errors`, 'success');
+                showMessage(`Import finished!\nSuccess: ${result.successCount}\nErrors: ${result.errorCount}`, 'success');
+            },
+            onError: (error) => {
+                console.error('Import error:', error);
+                updateSDKInfo('Error occurred', 'error');
+                showMessage(`Import error: ${error.message || error}`, 'error');
+            }
+        };
+
+        // Presets
+        const presets = {
+            basic: {
+                apiEndpoint: 'http://localhost:3011/geored/bin/service/import',
+                chunkSize: 100,
+                updateByTankNumber: false,
+                fileMappings: [
+                    {
+                        name: 'Basic CSV',
+                        pattern: /\.csv$/,
+                        fieldMapping: {},
+                        transformers: {
+                            typeId: (value) => parseInt(value) || null,
+                            latitude: (value) => parseFloat(value) || null,
+                            longitude: (value) => parseFloat(value) || null
+                        }
+                    }
+                ],
+                locale: 'en'
+            },
+            advanced: {
+                apiEndpoint: 'http://localhost:3011/geored/bin/service/import',
+                chunkSize: 50,
+                updateByTankNumber: true,
+                metricsBackend: {
+                    enabled: true,
+                    baseURL: 'http://localhost:3012',
+                    includeProgress: true
+                },
+                fileMappings: [
+                    {
+                        name: 'Advanced Format',
+                        pattern: /.*\.csv$/,
+                        fieldMapping: {
+                            'Tank ID': 'tankNumber',
+                            'Type': 'typeId',
+                            'Location': 'city',
+                            'Lat': 'latitude',
+                            'Long': 'longitude',
+                            'Active': 'active',
+                            'Volume': 'volume'
+                        },
+                        transformers: {
+                            typeId: (value) => parseInt(value) || null,
+                            latitude: (value) => parseFloat(value) || null,
+                            longitude: (value) => parseFloat(value) || null,
+                            active: (value) => Boolean(value),
+                            volume: (value) => parseFloat(value) || 0
+                        },
+                        validate: {
+                            latitude: [(v) => !!v && Math.abs(v) <= 90, "Valid latitude required (-90 to 90)"],
+                            longitude: [(v) => !!v && Math.abs(v) <= 180, "Valid longitude required (-180 to 180)"],
+                            tankNumber: [(v) => !!v, "Tank Number is required"],
+                            typeId: [(v) => !isNaN(parseInt(v)), "Valid Type ID required"]
+                        }
+                    }
+                ],
+                locale: 'en',
+                onProgress: (stats) => console.log('Advanced progress:', stats),
+                onComplete: (result) => console.log('Advanced complete:', result),
+                onError: (error) => console.error('Advanced error:', error)
+            }
+        };
+
+        // Initialize CodeMirror
+        function initEditor() {
+            editor = CodeMirror.fromTextArea(document.getElementById('config-editor'), {
+                mode: 'javascript',
+                theme: 'monokai',
+                lineNumbers: true,
+                lineWrapping: true,
+                autoCloseBrackets: true,
+                matchBrackets: true,
+                indentUnit: 4,
+                tabSize: 4,
+                indentWithTabs: false
+            });
+
+            editor.setValue(JSON.stringify(defaultConfig, null, 2));
+
+            // Update cursor position
+            editor.on('cursorActivity', () => {
+                const cursor = editor.getCursor();
+                document.getElementById('line-info').textContent = `Line ${cursor.line + 1}, Col ${cursor.ch + 1}`;
+            });
+
+            // Validate config on change
+            editor.on('change', () => {
+                validateConfig();
+            });
+        }
+
+        // Validate configuration
+        function validateConfig() {
+            try {
+                const configText = editor.getValue();
+                JSON.parse(configText);
+                document.getElementById('config-status').className = 'status-indicator status-success';
+                document.getElementById('editor-status').textContent = 'Valid JSON';
+                return true;
+            } catch (error) {
+                document.getElementById('config-status').className = 'status-indicator status-error';
+                document.getElementById('editor-status').textContent = `JSON Error: ${error.message}`;
+                return false;
+            }
+        }
+
+        // Initialize SDK with current configuration
+        function initializeSDK() {
+            if (!validateConfig()) {
+                showMessage('Invalid configuration JSON', 'error');
+                return;
+            }
+
+            try {
+                // Clear existing SDK
+                if (currentSDK) {
+                    currentSDK.destroy();
+                }
+
+                // Clear container
+                const container = document.getElementById('import-container');
+                container.innerHTML = '';
+
+                // Parse and apply configuration
+                const config = JSON.parse(editor.getValue());
+                
+                // Initialize SDK
+                currentSDK = ImportSDK.init(container, config);
+                
+                updateSDKInfo('SDK initialized successfully', 'success');
+                showMessage('SDK initialized with custom configuration', 'success');
+                document.getElementById('last-action').textContent = 'SDK initialized';
+                
+            } catch (error) {
+                updateSDKInfo('Initialization failed', 'error');
+                showMessage(`SDK initialization failed: ${error.message}`, 'error');
+                console.error('SDK init error:', error);
+            }
+        }
+
+        // Clear SDK
+        function clearSDK() {
+            if (currentSDK) {
+                currentSDK.destroy();
+                currentSDK = null;
+            }
+            
+            const container = document.getElementById('import-container');
+            container.innerHTML = '<div style="text-align: center; color: #718096; padding: 40px;">Click "Initialize SDK" to start testing</div>';
+            
+            updateSDKInfo('SDK cleared', 'warning');
+            document.getElementById('last-action').textContent = 'SDK cleared';
+        }
+
+        // Reset configuration to default
+        function resetConfig() {
+            editor.setValue(JSON.stringify(defaultConfig, null, 2));
+            showMessage('Configuration reset to default', 'success');
+        }
+
+        // Load preset configuration
+        function loadPreset(presetName) {
+            if (presets[presetName]) {
+                editor.setValue(JSON.stringify(presets[presetName], null, 2));
+                showMessage(`Loaded ${presetName} preset`, 'success');
+            }
+        }
+
+        // Update SDK status
+        function updateSDKInfo(message, status) {
+            const statusElement = document.getElementById('sdk-status');
+            const infoElement = document.getElementById('sdk-info');
+            
+            statusElement.className = `status-indicator status-${status}`;
+            infoElement.textContent = message;
+        }
+
+        // Show message
+        function showMessage(message, type) {
+            const container = document.getElementById('message-container');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `${type}-message`;
+            messageDiv.textContent = message;
+            
+            container.appendChild(messageDiv);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (messageDiv.parentNode) {
+                    messageDiv.parentNode.removeChild(messageDiv);
+                }
+            }, 5000);
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            initEditor();
+            updateSavedCount();
+        });
+
+        // ============================================================================
+        // LOCAL STORAGE CONFIGURATION MANAGEMENT
+        // ============================================================================
+
+        /**
+         * Update the saved configurations count display
+         */
+        function updateSavedCount() {
+            const savedConfigs = getSavedConfigs();
+            const count = Object.keys(savedConfigs).length;
+            document.getElementById('saved-count').textContent = count;
+        }
+
+        /**
+         * Get all saved configurations from localStorage
+         */
+        function getSavedConfigs() {
+            try {
+                const saved = localStorage.getItem('importSDKConfigs');
+                return saved ? JSON.parse(saved) : {};
+            } catch (error) {
+                console.error('Error loading saved configs:', error);
+                return {};
+            }
+        }
+
+        /**
+         * Save configurations to localStorage
+         */
+        function saveConfigsToStorage(configs) {
+            try {
+                localStorage.setItem('importSDKConfigs', JSON.stringify(configs));
+                return true;
+            } catch (error) {
+                console.error('Error saving configs:', error);
+                showMessage('Failed to save configurations', 'error');
+                return false;
+            }
+        }
+
+        /**
+         * Save current configuration with a custom name
+         */
+        function saveCurrentConfig() {
+            if (!validateConfig()) {
+                showMessage('Invalid configuration JSON', 'error');
+                return;
+            }
+
+            const name = prompt('Enter a name for this configuration:');
+            if (!name || !name.trim()) {
+                return;
+            }
+
+            try {
+                const config = JSON.parse(editor.getValue());
+                const savedConfigs = getSavedConfigs();
+                
+                savedConfigs[name.trim()] = {
+                    config: config,
+                    createdAt: new Date().toISOString(),
+                    description: `Custom configuration: ${name.trim()}`
+                };
+
+                if (saveConfigsToStorage(savedConfigs)) {
+                    showMessage(`Configuration "${name.trim()}" saved successfully`, 'success');
+                    document.getElementById('last-action').textContent = `Saved config: ${name.trim()}`;
+                    updateSavedCount();
+                }
+            } catch (error) {
+                showMessage(`Failed to save configuration: ${error.message}`, 'error');
+            }
+        }
+
+        /**
+         * Show list of saved configurations for loading
+         */
+        function showSavedConfigs() {
+            const savedConfigs = getSavedConfigs();
+            const configNames = Object.keys(savedConfigs);
+
+            if (configNames.length === 0) {
+                showMessage('No saved configurations found', 'warning');
+                return;
+            }
+
+            const configList = configNames.map((name, index) => {
+                const config = savedConfigs[name];
+                const createdDate = new Date(config.createdAt).toLocaleDateString();
+                return `${index + 1}. ${name} (${createdDate})`;
+            }).join('\n');
+
+            const selection = prompt(`Select configuration to load:\n\n${configList}\n\nEnter number (1-${configNames.length}):`);
+            
+            if (selection && !isNaN(selection)) {
+                const index = parseInt(selection) - 1;
+                if (index >= 0 && index < configNames.length) {
+                    const selectedName = configNames[index];
+                    loadSavedConfig(selectedName);
+                } else {
+                    showMessage('Invalid selection', 'error');
+                }
+            }
+        }
+
+        /**
+         * Load a specific saved configuration
+         */
+        function loadSavedConfig(name) {
+            try {
+                const savedConfigs = getSavedConfigs();
+                const savedConfig = savedConfigs[name];
+                
+                if (!savedConfig) {
+                    showMessage(`Configuration "${name}" not found`, 'error');
+                    return;
+                }
+
+                editor.setValue(JSON.stringify(savedConfig.config, null, 2));
+                showMessage(`Loaded configuration: ${name}`, 'success');
+                document.getElementById('last-action').textContent = `Loaded: ${name}`;
+            } catch (error) {
+                showMessage(`Failed to load configuration: ${error.message}`, 'error');
+            }
+        }
+
+        /**
+         * Manage saved configurations (delete, rename, export)
+         */
+        function manageSavedConfigs() {
+            const savedConfigs = getSavedConfigs();
+            const configNames = Object.keys(savedConfigs);
+
+            if (configNames.length === 0) {
+                showMessage('No saved configurations found', 'warning');
+                return;
+            }
+
+            const action = prompt(`Manage saved configurations:\n\n${configNames.map((name, i) => `${i + 1}. ${name}`).join('\n')}\n\nOptions:\n- Enter number to delete\n- "export" to export all\n- "clear" to delete all`);
+
+            if (!action) return;
+
+            if (action.toLowerCase() === 'export') {
+                exportAllConfigs();
+            } else if (action.toLowerCase() === 'clear') {
+                if (confirm('Are you sure you want to delete all saved configurations?')) {
+                    localStorage.removeItem('importSDKConfigs');
+                    showMessage('All saved configurations deleted', 'success');
+                    document.getElementById('last-action').textContent = 'Cleared all saved configs';
+                    updateSavedCount();
+                }
+            } else if (!isNaN(action)) {
+                const index = parseInt(action) - 1;
+                if (index >= 0 && index < configNames.length) {
+                    const nameToDelete = configNames[index];
+                    if (confirm(`Delete configuration "${nameToDelete}"?`)) {
+                        delete savedConfigs[nameToDelete];
+                        saveConfigsToStorage(savedConfigs);
+                        showMessage(`Deleted configuration: ${nameToDelete}`, 'success');
+                        document.getElementById('last-action').textContent = `Deleted: ${nameToDelete}`;
+                        updateSavedCount();
+                    }
+                } else {
+                    showMessage('Invalid selection', 'error');
+                }
+            } else {
+                showMessage('Invalid action', 'error');
+            }
+        }
+
+        /**
+         * Export all saved configurations as JSON file
+         */
+        function exportAllConfigs() {
+            const savedConfigs = getSavedConfigs();
+            
+            if (Object.keys(savedConfigs).length === 0) {
+                showMessage('No configurations to export', 'warning');
+                return;
+            }
+
+            const exportData = {
+                exportedAt: new Date().toISOString(),
+                version: '1.0',
+                configurations: savedConfigs
+            };
+
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `import-sdk-configs-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            showMessage('Configurations exported successfully', 'success');
+            document.getElementById('last-action').textContent = 'Exported all configs';
+        }
+
+        /**
+         * Import configurations from JSON file
+         */
+        function importConfigs() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const importData = JSON.parse(event.target.result);
+                        
+                        if (!importData.configurations) {
+                            showMessage('Invalid configuration file format', 'error');
+                            return;
+                        }
+
+                        const savedConfigs = getSavedConfigs();
+                        const importCount = Object.keys(importData.configurations).length;
+                        
+                        // Merge with existing configs
+                        Object.assign(savedConfigs, importData.configurations);
+                        
+                        if (saveConfigsToStorage(savedConfigs)) {
+                            showMessage(`Imported ${importCount} configurations successfully`, 'success');
+                            document.getElementById('last-action').textContent = `Imported ${importCount} configs`;
+                            updateSavedCount();
+                        }
+                    } catch (error) {
+                        showMessage(`Failed to import configurations: ${error.message}`, 'error');
+                    }
+                };
+                
+                reader.readAsText(file);
+            };
+            
+            input.click();
+        }
+    </script>
+</body>
+
+</html>

@@ -2223,6 +2223,53 @@ class ImportSDK {
         a.click();
         URL.revokeObjectURL(url);
     }
+
+    /**
+     * Destroy the SDK instance and clean up resources
+     */
+    destroy() {
+        // Clear the container
+        if (this.container) {
+            this.container.innerHTML = '';
+        }
+        
+        // Clear any ongoing operations
+        this.state.isProcessing = false;
+        
+        // Clear timers and intervals
+        if (this.progressTimer) {
+            clearInterval(this.progressTimer);
+        }
+        
+        // Clear event listeners
+        if (this.fileInput) {
+            this.fileInput.removeEventListener('change', this.handleFileSelect);
+        }
+        
+        // Reset state
+        this.state = {
+            isProcessing: false,
+            selectedFile: null,
+            successCount: 0,
+            errorCount: 0,
+            totalCount: 0,
+            filteredCount: 0,
+            logs: [],
+            successRows: [],
+            errorRows: [],
+            filteredRows: []
+        };
+        
+        // Clear metrics
+        this.resetMetrics();
+        
+        // Clear references
+        this.currentSDK = null;
+        this.activePlugins = null;
+        this.rowBuffer = [];
+        
+        console.log('ImportSDK instance destroyed');
+    }
 }
 
 // Export for module systems
