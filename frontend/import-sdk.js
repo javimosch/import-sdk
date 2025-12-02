@@ -632,6 +632,13 @@ class ImportSDK {
         const checkBtn = document.getElementById('import-sdk-check-btn');
         const clearLogsBtn = document.getElementById('import-sdk-clear-logs');
 
+        // In some advanced demos/pages, a custom UI might be used and the
+        // default ImportSDK template may not be present. In that case the
+        // elements above will be null; bail out safely instead of throwing.
+        if (!fileInput || !dropZone || !uploadPrompt || !removeBtn || !startBtn || !checkBtn || !clearLogsBtn) {
+            return;
+        }
+
         // Click to upload
         uploadPrompt.addEventListener('click', () => fileInput.click());
 

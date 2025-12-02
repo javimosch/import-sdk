@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Import SDK - Simulated Generic API</title>
+    <link rel="stylesheet" href="import-ui.css">
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            background: #f0f2f5;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            margin-top: 0;
+            color: #1a1a1a;
+        }
+
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        .info h3 {
+            margin-top: 0;
+            color: #1976d2;
+        }
+
+        #test-logs {
+            margin-top: 20px;
+            padding: 10px;
+            background: #eee;
+            border: 1px solid #ccc;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        .log-entry {
+            margin: 2px 0;
+        }
+
+        .log-success {
+            color: #2e7d32;
+        }
+
+        .log-error {
+            color: #c62828;
+        }
+
+        .log-info {
+            color: #1565c0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Import SDK - Simulated Generic API (sendHandler)</h1>
+
+        <div class="info">
+            <h3>Test Configuration</h3>
+            <p><strong>Core SDK:</strong> Uses generic defaultSendHandler / handleBatchResult.</p>
+            <p><strong>Custom sendHandler:</strong> Simulates a generic API response and attaches error data.</p>
+            <p><strong>Behavior:</strong> Rejects rows where <code>status === "invalid"</code>, accepts others.</p>
+            <p><strong>Note:</strong> This page does <em>not</em> include <code>import-sdk-contenant.js</code>.</p>
+        </div>
+
+        <div id="import-container"></div>
+
+        <h3>Simulated Handler Logs</h3>
+        <div id="test-logs"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="import-sdk.js"></script>
+    <script>
+        function log(msg, type = 'info') {
+            const div = document.getElementById('test-logs');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            div.appendChild(entry);
+            div.scrollTop = div.scrollHeight;
+            console.log(msg);
+        }
+
+        // Simulated generic API using sendHandler
+        async function simulatedSendHandler(batch, config) {
+            log(`Simulated handler received batch of ${batch.length} records`, 'info');
+
+            // Simulate network latency
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            const items = [];
+            batch.forEach((row, index) => {
+                // Treat rows with status === 'invalid' as errors
+                if (row.status === 'invalid') {
+                    items.push({
+                        error: true,
+                        errorMessage: `Row marked as invalid (status=invalid)`,
+                        code: 'INVALID_STATUS',
+                        index
+                    });
+                    log(`  ❌ Invalid row at index ${index} (status=invalid)`, 'error');
+                } else {
+                    items.push({
+                        error: false,
+                        index
+                    });
+                    log(`  ✅ Accepted row at index ${index}`, 'success');
+                }
+            });
+
+            // Shape that the generic defaultSendHandler can understand if wired,
+            // but we return the normalized {success, errors} directly here.
+            const result = {
+                success: 0,
+                errors: []
+            };
+
+            items.forEach((res, idx) => {
+                const originalRow = batch[idx];
+                if (res.error) {
+                    result.errors.push({
+                        message: res.errorMessage,
+                        data: {
+                            ...res,
+                            originalRow
+                        }
+                    });
+                } else {
+                    result.success++;
+                }
+            });
+
+            log(`Simulated handler result: ${result.success} success, ${result.errors.length} errors`, 'info');
+            log('─'.repeat(80), 'info');
+            return result;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const container = document.getElementById('import-container');
+
+            log('Initializing ImportSDK with simulated generic sendHandler...', 'info');
+
+            const sdk = ImportSDK.init(container, {
+                apiEndpoint: 'https://example.invalid/api/import', // Not used when sendHandler is provided
+                chunkSize: 3,
+
+                // Use the simulated handler instead of any real API call
+                sendHandler: simulatedSendHandler,
+
+                onProgress: (stats) => {
+                    log(`Progress: ${stats.successCount} success, ${stats.errorCount} errors, ${stats.totalCount} total`, 'info');
+                },
+
+                onComplete: (stats) => {
+                    log(`Import complete. Success: ${stats.successCount}, Errors: ${stats.errorCount}, Total: ${stats.totalCount}`, 'success');
+                },
+
+                onError: (err) => {
+                    log(`Error callback: ${err.message}`, 'error');
+                }
+            });
+
+            // Optionally, you can auto-load a CSV here similar to test-sendHandler.html
+            // or just let the user pick a file.
+        });
+    </script>
+</body>
+
+</html>
