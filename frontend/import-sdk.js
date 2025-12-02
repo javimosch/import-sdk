@@ -417,6 +417,37 @@ class ImportSDK {
     }
 
     /**
+     * Send error sample to metrics backend (one sample per unique error message)
+     * @param {string} errorMessage - Error message
+     * @param {string} errorType - Type of error (validation, api, network, etc.)
+     * @param {Object} errorData - Additional error data
+     */
+    async sendErrorSample(errorMessage, errorType, errorData = {}) {
+        if (!this.config.metricsBackend.enabled) {
+            return;
+        }
+
+        // Track unique error messages to avoid spamming
+        if (!this.uniqueErrors) {
+            this.uniqueErrors = new Set();
+        }
+
+        // Create a unique key for this error type and message
+        const errorKey = `${errorType}:${errorMessage}`;
+        
+        // Only send if we haven't seen this error before
+        if (!this.uniqueErrors.has(errorKey)) {
+            this.uniqueErrors.add(errorKey);
+            
+            await this.sendAuditLog('error', errorMessage, {
+                errorType: errorType,
+                sample: true,
+                data: errorData
+            });
+        }
+    }
+
+    /**
      * Get translated string
      * @param {string} key - Translation key
      * @param {Object} params - Parameters to replace in string
@@ -717,6 +748,9 @@ class ImportSDK {
             estimatedRows: 0,
             actualRows: 0
         };
+        
+        // Reset unique errors tracking for new import
+        this.uniqueErrors = new Set();
     }
 
     /**
@@ -1314,6 +1348,12 @@ class ImportSDK {
                     },
                     error: (err) => {
                         this.log(this.t('parsingError', { message: err.message }), 'error');
+                        
+                        // Send parsing error sample to metrics backend
+                        this.sendErrorSample(err.message, 'parsing', {
+                            fileName: this.state.selectedFile?.name
+                        });
+                        
                         this.finishImport();
                     }
                 };
@@ -1412,6 +1452,12 @@ class ImportSDK {
                 }
                 
                 this.log(this.t('validationError', { error: validation.error }), 'error');
+                
+                // Send validation error sample to metrics backend
+                this.sendErrorSample(validation.error, 'client-validation', {
+                    row: transformed,
+                    field: validation.field || 'unknown'
+                });
             }
         }
         
@@ -1754,6 +1800,13 @@ class ImportSDK {
             // Network or unexpected error
             this.state.errorCount += batch.length;
             this.log(this.t('networkError', { message: err.message }), 'error');
+            
+            // Send network error sample to metrics backend
+            this.sendErrorSample(err.message, 'network', {
+                batchSize: batch.length,
+                url: this.config.apiEndpoint
+            });
+            
             return {
                 success: 0,
                 errors: batch.map(() => ({
@@ -1802,6 +1855,10 @@ class ImportSDK {
                 
                 this.state.errorRows.push(errorRow);
                 this.log(`Error: ${err.message}`, 'error');
+                
+                // Send error detail to metrics backend (sample unique errors)
+                this.sendErrorSample(err.message, 'validation', errorRow);
+                
                 if (this.config.onError) {
                     this.config.onError(err);
                 }
@@ -1809,6 +1866,10 @@ class ImportSDK {
         } else {
             result.errors.forEach(err => {
                 this.log(`Error: ${err.message}`, 'error');
+                
+                // Send error detail to metrics backend (sample unique errors)
+                this.sendErrorSample(err.message, 'api', err);
+                
                 if (this.config.onError) {
                     this.config.onError(err);
                 }
