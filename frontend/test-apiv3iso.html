@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Import SDK Demo - API v3 Containers</title>
+        <link rel="stylesheet" href="import-ui.css" />
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+        <style>
+            .auth-section {
+                background: white;
+                padding: 20px;
+                margin: 20px auto;
+                max-width: 600px;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .auth-section h3 {
+                margin-top: 0;
+                color: #2d3748;
+            }
+            .auth-section input {
+                width: 100%;
+                padding: 8px 12px;
+                border: 1px solid #e2e8f0;
+                border-radius: 4px;
+                font-size: 14px;
+                margin-bottom: 12px;
+            }
+            .auth-section button {
+                background: #3182ce;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 14px;
+            }
+            .auth-section button:hover {
+                background: #2c5282;
+            }
+            .auth-status {
+                margin-top: 12px;
+                padding: 8px;
+                border-radius: 4px;
+                font-size: 13px;
+            }
+            .auth-status.set {
+                background: #f0fff4;
+                color: #22543d;
+                border: 1px solid #9ae6b4;
+            }
+            .auth-status.not-set {
+                background: #fffaf0;
+                color: #7c2d12;
+                border: 1px solid #fbd38d;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="demo-header">
+            <h1>Import SDK Demo - API v3 Containers</h1>
+            <p>Import de bacs via /geored/bin/service/import</p>
+        </div>
+
+        <div class="auth-section">
+            <h3>Authentication</h3>
+            <input type="password" id="bearer-token" placeholder="Enter Bearer token..." />
+            <button onclick="setBearerToken()">Set Authorization</button>
+            <div id="auth-status" class="auth-status not-set">No authorization token set</div>
+        </div>
+
+        <div id="import-container"></div>
+
+        <script src="import-sdk.js"></script>
+        <script>
+            let currentBearerToken = localStorage.getItem('bearerToken') || '';
+            let sdkInstance = null;
+
+            // Load saved token on page load
+            document.addEventListener('DOMContentLoaded', () => {
+                const tokenInput = document.getElementById('bearer-token');
+                if (currentBearerToken) {
+                    tokenInput.value = currentBearerToken;
+                    updateAuthStatus();
+                }
+                initializeSDK();
+            });
+
+            function updateAuthStatus() {
+                const authStatus = document.getElementById('auth-status');
+                if (currentBearerToken) {
+                    authStatus.textContent = `Authorization token set (Bearer ${currentBearerToken.substring(0, 8)}...)`;
+                    authStatus.className = 'auth-status set';
+                } else {
+                    authStatus.textContent = 'No authorization token set';
+                    authStatus.className = 'auth-status not-set';
+                }
+            }
+
+            function setBearerToken() {
+                const tokenInput = document.getElementById('bearer-token');
+                const token = tokenInput.value.trim();
+                
+                if (token) {
+                    currentBearerToken = token;
+                    localStorage.setItem('bearerToken', token);
+                    updateAuthStatus();
+                    
+                    // Update SDK configuration with new headers
+                    if (sdkInstance) {
+                        sdkInstance.updateConfig({
+                            headers: {
+                                'Authorization': `Bearer ${token}`
+                            }
+                        });
+                    }
+                } else {
+                    currentBearerToken = '';
+                    localStorage.removeItem('bearerToken');
+                    updateAuthStatus();
+                    
+                    if (sdkInstance) {
+                        sdkInstance.updateConfig({
+                            headers: {}
+                        });
+                    }
+                }
+            }
+
+            // Initialize SDK
+            function initializeSDK() {
+                const config = {
+                    apiEndpoint: "https://isoprod-apiv3.geored.fr/geored/bin/service/import",
+                    chunkSize: 100,
+                    updateByTankNumber: false,
+
+                    resultExport: ['success', 'errors', 'filtered', 'logs'],
+
+                    metricsBackend: {
+                        enabled: true,
+                        baseURL: "http://localhost:3012",
+                        includeProgress: true,
+                    },
+
+                    // Set initial headers based on stored token
+                    headers: currentBearerToken ? {
+                        'Authorization': `Bearer ${currentBearerToken}`
+                    } : {},
+
+                    // Use same mapping behavior as test-isoprod but target the new CSV
+                    fileMappings: [
+                        {
+                            name: "API v3 Container CSV",
+                            pattern: /apiv3con.*\.csv$/,
+                            fieldMapping: {}, // headers already match API fields
+                            transformers: {
+                                typeId: (value) => parseInt(value) || null,
+                                categoryId: (value) => parseInt(value) || null,
+                                areaId: (value) => parseInt(value) || null,
+                                fluxMaterialId: (value) => parseInt(value) || null,
+                                roundId: (value) => parseInt(value) || null,
+                                makeId: (value) => parseInt(value) || null,
+                                volume: (value) => parseFloat(value) || null,
+                                loadMax: (value) => parseFloat(value) || null,
+                                longitude: (value) => parseFloat(value) || null,
+                                latitude: (value) => parseFloat(value) || null,
+                                active: (value) => {
+                                    if (value === undefined || value === null) return true;
+                                    if (typeof value === "boolean") return value;
+                                    const v = String(value).toLowerCase();
+                                    return v === "1" || v === "true";
+                                },
+                                state: (value) => {
+                                    const n = parseInt(value);
+                                    return Number.isNaN(n) ? null : n;
+                                },
+                            },
+                            validate: {
+                                tankNumber: [(v) => !!v, "Tank Number is required"],
+                            },
+                        },
+                    ],
+
+                    locale: "fr",
+                    translations: {
+                        fr: {
+                            uploadPrompt:
+                                "Cliquez pour télécharger ou glissez-déposez",
+                            uploadHint: "Fichiers CSV uniquement",
+                            checkFile: "Vérifier le fichier",
+                            startImport: "Démarrer l'importation",
+                            importing: "Importation...",
+                            checking: "Vérification...",
+                            progressTitle: "Progression",
+                            importProgress: "Progression de l'importation",
+                            validationProgress: "Progression de la validation",
+                            success: "Succès",
+                            errors: "Erreurs",
+                            total: "Total",
+                            logs: "Journaux",
+                            clearLogs: "Effacer",
+                            ready: "Prêt à démarrer...",
+                            fileSelected:
+                                "Fichier sélectionné : {filename} ({size} KB){mapping}",
+                            mappingInfo: " (Cartographie : {name})",
+                            fileRemoved: "Fichier supprimé.",
+                            logsCleared: "Journaux effacés...",
+                            parsingComplete:
+                                "Analyse terminée. Finalisation...",
+                            importFinished: "Importation terminée.",
+                            validationFinished: "Validation terminée.",
+                            errorCsvOnly:
+                                "Veuillez télécharger un fichier CSV.",
+                            usingMapping:
+                                "Utilisation de la cartographie : {name}",
+                            parsingError: "Erreur d'analyse : {message}",
+                            validationError: "Erreur de validation : {error}",
+                            networkError: "Erreur réseau : {message}",
+                            serverError: "Erreur serveur : {status} {statusText}",
+                            batchValidationFailed:
+                                "Échec de la validation du lot : {status}",
+                            handlerError: "Erreur du gestionnaire : {message}",
+                            invalidHandlerResponse:
+                                "Réponse invalide du gestionnaire, utilisation des valeurs par défaut",
+                            sendHandlerError:
+                                "Erreur du gestionnaire d'envoi : {message}",
+                        },
+                    },
+
+                    fieldMapping: {},
+                    transformers: {},
+
+                    onProgress: (stats) => {
+                        console.log("Progress:", stats);
+                    },
+                    onComplete: (result) => {
+                        console.log("Import complete:", result);
+                        alert(
+                            `Import finished!\nSuccess: ${result.successCount}\nErrors: ${result.errorCount}`,
+                        );
+                    },
+                    onError: (error) => {
+                        console.error("Import error:", error);
+                    },
+                };
+
+                sdkInstance = ImportSDK.init(document.getElementById("import-container"), config);
+            }
+
+            </script>
+    </body>
+</html>
