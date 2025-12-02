@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ImportSDK Plugins Demo - Ref-POC Features</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #007bff;
+            padding-bottom: 10px;
+        }
+        
+        h2 {
+            color: #555;
+            margin-top: 30px;
+        }
+        
+        .demo-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background: #fafafa;
+        }
+        
+        .file-upload {
+            border: 2px dashed #007bff;
+            border-radius: 6px;
+            padding: 40px;
+            text-align: center;
+            margin: 20px 0;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .file-upload:hover {
+            background: #e3f2fd;
+            border-color: #0056b3;
+        }
+        
+        .file-upload.dragover {
+            background: #e3f2fd;
+            border-color: #0056b3;
+        }
+        
+        .validation-results {
+            margin: 20px 0;
+        }
+        
+        .validation-item {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+        }
+        
+        .validation-item.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .validation-item.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .validation-item.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .field-mapping-demo {
+            margin: 20px 0;
+        }
+        
+        .mapping-example {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        
+        .import-container {
+            min-height: 200px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 20px;
+            background: white;
+        }
+        
+        .log-output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 20px 0;
+        }
+        
+        .log-entry {
+            margin: 2px 0;
+        }
+        
+        .log-entry.error { color: #ff6b6b; }
+        .log-entry.warning { color: #ffa726; }
+        .log-entry.success { color: #66bb6a; }
+        .log-entry.info { color: #42a5f5; }
+        
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        .btn:hover {
+            background: #0056b3;
+        }
+        
+        .btn.secondary {
+            background: #6c757d;
+        }
+        
+        .btn.secondary:hover {
+            background: #545b62;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 ImportSDK Plugins Demo</h1>
+        <p>Demonstrating Ref-POC inspired features: File Validation & Smart Field Mapping</p>
+        
+        <!-- Plugin Status -->
+        <div class="demo-section">
+            <h2>📋 Plugin Status</h2>
+            <div id="plugin-status"></div>
+        </div>
+        
+        <!-- File Validation Demo -->
+        <div class="demo-section">
+            <h2>📁 File Validation Plugin</h2>
+            <p>Upload a CSV file to see validation in action. The plugin will check:</p>
+            <ul>
+                <li>File type and size</li>
+                <li>CSV structure and headers</li>
+                <li>Required vs allowed columns</li>
+                <li>Unknown column warnings</li>
+            </ul>
+            
+            <div class="file-upload" id="file-upload">
+                <input type="file" id="file-input" accept=".csv" style="display: none;">
+                <p>📁 Click to upload CSV file or drag & drop</p>
+                <p style="font-size: 12px; color: #666;">Max file size: 50MB</p>
+            </div>
+            
+            <div id="validation-results" class="validation-results"></div>
+        </div>
+        
+        <!-- Field Mapping Demo -->
+        <div class="demo-section">
+            <h2>🔄 Smart Field Mapping Plugin</h2>
+            <p>Demonstrates automatic field mapping and type conversion:</p>
+            
+            <div class="field-mapping-demo">
+                <h3>Field Aliases</h3>
+                <div class="mapping-example">
+                    chipNumber ← rfidNumber, uhfNumber, memoryChipNumber<br>
+                    tankNumber ← tank_id, TankID, tankId<br>
+                    latitude ← lat, Latitude, LAT<br>
+                    longitude ← lng, lon, Longitude, LNG
+                </div>
+                
+                <h3>Type Conversions</h3>
+                <div class="mapping-example">
+                    active: "true" → true<br>
+                    volume: "123.45" → 123.45<br>
+                    latitude: "48.8566" → 48.8566<br>
+                    empty strings → null
+                </div>
+                
+                <button class="btn" onclick="testFieldMapping()">Test Field Mapping</button>
+                <button class="btn secondary" onclick="clearMappingDemo()">Clear</button>
+            </div>
+            
+            <div id="mapping-results" class="log-output"></div>
+        </div>
+        
+        <!-- Full Import Demo -->
+        <div class="demo-section">
+            <h2>🎯 Full Import Demo</h2>
+            <p>Complete import process with both plugins enabled:</p>
+            
+            <div id="import-container" class="import-container">
+                <p>Upload a CSV file above to start the import process...</p>
+            </div>
+            
+            <div class="stats-grid" id="import-stats" style="display: none;">
+                <div class="stat-card">
+                    <div class="stat-value" id="total-rows">0</div>
+                    <div class="stat-label">Total Rows</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="success-rows">0</div>
+                    <div class="stat-label">Success</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="error-rows">0</div>
+                    <div class="stat-label">Errors</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="mapped-fields">0</div>
+                    <div class="stat-label">Mapped Fields</div>
+                </div>
+            </div>
+            
+            <div id="import-log" class="log-output"></div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="import-sdk.js"></script>
+    <script src="import-sdk-plugins.js"></script>
+    
+    <script>
+        // Demo state
+        let currentFile = null;
+        let importInstance = null;
+        
+        // Initialize demo
+        document.addEventListener('DOMContentLoaded', function() {
+            initializePluginStatus();
+            setupFileUpload();
+            setupImportContainer();
+        });
+        
+        // Show plugin status
+        function initializePluginStatus() {
+            const plugins = ImportSDKPlugins.getAvailablePlugins();
+            const statusDiv = document.getElementById('plugin-status');
+            
+            statusDiv.innerHTML = plugins.map(plugin => `
+                <div style="display: inline-block; margin: 5px; padding: 8px 12px; background: #e3f2fd; border-radius: 4px;">
+                    <strong>${plugin.name}</strong> (${plugin.type})
+                </div>
+            `).join('');
+        }
+        
+        // File upload handling
+        function setupFileUpload() {
+            const uploadArea = document.getElementById('file-upload');
+            const fileInput = document.getElementById('file-input');
+            
+            uploadArea.addEventListener('click', () => fileInput.click());
+            
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+            
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+            
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleFileSelect(files[0]);
+                }
+            });
+            
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleFileSelect(e.target.files[0]);
+                }
+            });
+        }
+        
+        // Handle file selection
+        async function handleFileSelect(file) {
+            currentFile = file;
+            document.getElementById('file-upload').innerHTML = `
+                <p>📄 ${file.name}</p>
+                <p>Size: ${(file.size / 1024).toFixed(1)}KB</p>
+                <p>Validating file...</p>
+            `;
+            
+            // Create temporary SDK instance for validation
+            const tempSDK = new ImportSDK(document.createElement('div'), {
+                apiEndpoint: 'https://httpbin.org/post',
+                chunkSize: 10,
+                onProgress: null
+            });
+            
+            try {
+                // Execute file validation plugins
+                const validationResults = await tempSDK.executeFilePlugins('validate', file);
+                
+                displayValidationResults(validationResults);
+                
+                // If validation passes, enable import
+                const isValid = validationResults.every(r => r.success && r.result.isValid);
+                if (isValid) {
+                    startImport(file);
+                }
+                
+            } catch (error) {
+                displayValidationError(error.message);
+            }
+        }
+        
+        // Display validation results
+        function displayValidationResults(results) {
+            const resultsDiv = document.getElementById('validation-results');
+            let html = '<h3>Validation Results:</h3>';
+            
+            results.forEach(result => {
+                if (result.success) {
+                    const validation = result.result;
+                    
+                    // Errors
+                    validation.errors.forEach(error => {
+                        html += `<div class="validation-item error">❌ ${error}</div>`;
+                    });
+                    
+                    // Warnings
+                    validation.warnings.forEach(warning => {
+                        html += `<div class="validation-item warning">⚠️ ${warning}</div>`;
+                    });
+                    
+                    // Success info
+                    if (validation.isValid) {
+                        html += `<div class="validation-item success">✅ File validation passed!</div>`;
+                        html += `<div class="validation-item success">📊 ${validation.fileInfo.totalRows} rows, ${validation.fileInfo.columns.length} columns</div>`;
+                    }
+                } else {
+                    html += `<div class="validation-item error">❌ Plugin error: ${result.error}</div>`;
+                }
+            });
+            
+            resultsDiv.innerHTML = html;
+        }
+        
+        // Display validation error
+        function displayValidationError(error) {
+            const resultsDiv = document.getElementById('validation-results');
+            resultsDiv.innerHTML = `
+                <h3>Validation Error:</h3>
+                <div class="validation-item error">❌ ${error}</div>
+            `;
+        }
+        
+        // Start import process
+        function startImport(file) {
+            const container = document.getElementById('import-container');
+            
+            // Initialize ImportSDK with plugins
+            importInstance = ImportSDK.init(container, {
+                apiEndpoint: 'https://httpbin.org/post',
+                chunkSize: 5,
+                fieldMapping: {
+                    'Tank ID': 'tankNumber',
+                    'RFID': 'rfidNumber',
+                    'Lat': 'latitude',
+                    'Lng': 'longitude'
+                },
+                sendHandler: async (batch, config) => {
+                    // Simulate API call
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
+                    // Simulate some errors for demo
+                    const results = batch.map((row, index) => {
+                        if (index % 3 === 0 && !row.tankNumber) {
+                            return {
+                                success: false,
+                                error: { message: `tankNumber '${row.tankNumber}' already exists` }
+                            };
+                        }
+                        return { success: true };
+                    });
+                    
+                    return {
+                        success: results.filter(r => r.success).length,
+                        errors: results.filter(r => !r.success).map(r => r.error)
+                    };
+                },
+                onProgress: (stats) => {
+                    updateImportStats(stats);
+                },
+                onComplete: (stats) => {
+                    logImport('info', `Import completed: ${stats.successCount} success, ${stats.errorCount} errors`);
+                }
+            });
+            
+            // Set the file and start
+            importInstance.handleFileSelect(file);
+        }
+        
+        // Setup import container
+        function setupImportContainer() {
+            const container = document.getElementById('import-container');
+            container.innerHTML = '<p>Upload a CSV file above to start the import process...</p>';
+        }
+        
+        // Update import statistics
+        function updateImportStats(stats) {
+            document.getElementById('import-stats').style.display = 'grid';
+            document.getElementById('total-rows').textContent = stats.totalCount;
+            document.getElementById('success-rows').textContent = stats.successCount;
+            document.getElementById('error-rows').textContent = stats.errorCount;
+            document.getElementById('mapped-fields').textContent = Object.keys(stats.mappings || {}).length;
+        }
+        
+        // Test field mapping
+        function testFieldMapping() {
+            const logDiv = document.getElementById('mapping-results');
+            logDiv.innerHTML = '';
+            
+            // Sample data to test mapping
+            const testData = [
+                {
+                    rfidNumber: 'RFID_001',
+                    tank_id: 'TANK_001',
+                    lat: '48.8566',
+                    lng: '2.3522',
+                    active: 'true',
+                    volume: '123.45',
+                    streetNumber: '123',
+                    emptyField: ''
+                }
+            ];
+            
+            // Create temporary SDK instance
+            const tempSDK = new ImportSDK(document.createElement('div'), {
+                apiEndpoint: 'https://httpbin.org/post',
+                chunkSize: 10
+            });
+            
+            logImport('info', 'Testing smart field mapping...');
+            
+            testData.forEach((row, index) => {
+                logImport('info', `Original row ${index + 1}: ${JSON.stringify(row, null, 2)}`);
+                
+                // Apply smart field mapping plugin
+                const mappingPlugin = ImportSDKPlugins.getPlugin('smartFieldMapping');
+                if (mappingPlugin) {
+                    const transformed = mappingPlugin.transform(row, tempSDK, mappingPlugin.config);
+                    logImport('success', `Transformed row ${index + 1}: ${JSON.stringify(transformed, null, 2)}`);
+                    
+                    // Show what was mapped
+                    const mappings = [];
+                    Object.keys(mappingPlugin.config.aliases).forEach(target => {
+                        const sources = mappingPlugin.config.aliases[target];
+                        const mappedFrom = sources.find(source => row[source] && !row[target]);
+                        if (mappedFrom) {
+                            mappings.push(`${mappedFrom} → ${target}`);
+                        }
+                    });
+                    
+                    if (mappings.length > 0) {
+                        logImport('info', `Field mappings: ${mappings.join(', ')}`);
+                    }
+                }
+            });
+        }
+        
+        // Clear mapping demo
+        function clearMappingDemo() {
+            document.getElementById('mapping-results').innerHTML = '';
+        }
+        
+        // Log to import output
+        function logImport(level, message) {
+            const logDiv = document.getElementById('import-log');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${level}`;
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            logDiv.appendChild(logEntry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+    </script>
+</body>
+</html>

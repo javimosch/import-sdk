@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ImportSDK V2 Plugins Demo - Advanced Features</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #007bff;
+            padding-bottom: 10px;
+        }
+        
+        h2 {
+            color: #555;
+            margin-top: 30px;
+            border-left: 4px solid #007bff;
+            padding-left: 15px;
+        }
+        
+        h3 {
+            color: #666;
+            margin-top: 20px;
+        }
+        
+        .demo-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background: #fafafa;
+        }
+        
+        .file-upload {
+            border: 2px dashed #007bff;
+            border-radius: 6px;
+            padding: 40px;
+            text-align: center;
+            margin: 20px 0;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .file-upload:hover {
+            background: #e3f2fd;
+            border-color: #0056b3;
+        }
+        
+        .file-upload.dragover {
+            background: #e3f2fd;
+            border-color: #0056b3;
+        }
+        
+        .metrics-dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .metric-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .metric-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #007bff;
+            margin-bottom: 5px;
+        }
+        
+        .metric-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+        
+        .metric-change {
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 12px;
+            background: #e3f2fd;
+            color: #007bff;
+        }
+        
+        .error-demo {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        
+        .error-item {
+            background: white;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            border-left: 4px solid #dc3545;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .error-severity {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-size: 10px;
+            text-transform: uppercase;
+            margin-right: 8px;
+        }
+        
+        .severity-critical { background: #dc3545; color: white; }
+        .severity-error { background: #fd7e14; color: white; }
+        .severity-warning { background: #ffc107; color: black; }
+        .severity-info { background: #17a2b8; color: white; }
+        
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            transition: background 0.3s;
+        }
+        
+        .btn:hover {
+            background: #0056b3;
+        }
+        
+        .btn.secondary {
+            background: #6c757d;
+        }
+        
+        .btn.secondary:hover {
+            background: #545b62;
+        }
+        
+        .btn.danger {
+            background: #dc3545;
+        }
+        
+        .btn.danger:hover {
+            background: #c82333;
+        }
+        
+        .btn.success {
+            background: #28a745;
+        }
+        
+        .btn.success:hover {
+            background: #218838;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #007bff, #0056b3);
+            transition: width 0.3s;
+            border-radius: 10px;
+        }
+        
+        .log-output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 20px 0;
+        }
+        
+        .log-entry {
+            margin: 2px 0;
+        }
+        
+        .log-entry.error { color: #ff6b6b; }
+        .log-entry.warning { color: #ffa726; }
+        .log-entry.success { color: #66bb6a; }
+        .log-entry.info { color: #42a5f5; }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-active { background: #28a745; }
+        .status-paused { background: #ffc107; }
+        .status-error { background: #dc3545; }
+        .status-idle { background: #6c757d; }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .feature-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .feature-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        
+        .feature-description {
+            color: #666;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+        
+        .feature-status {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .chart-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            margin: 20px 0;
+            height: 300px;
+            position: relative;
+        }
+        
+        .mini-chart {
+            width: 100%;
+            height: 100px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .chart-bar {
+            position: absolute;
+            bottom: 0;
+            background: #007bff;
+            transition: height 0.3s;
+            border-radius: 2px 2px 0 0;
+        }
+        
+        .recommendations {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        
+        .recommendation {
+            margin: 10px 0;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+            border-left: 4px solid #ffc107;
+        }
+        
+        .recommendation-type {
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 11px;
+            color: #856404;
+        }
+        
+        .data-quality-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .quality-metric {
+            text-align: center;
+            padding: 15px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+        }
+        
+        .quality-score {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .quality-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+        }
+        
+        .quality-excellent { color: #28a745; }
+        .quality-good { color: #17a2b8; }
+        .quality-fair { color: #ffc107; }
+        .quality-poor { color: #dc3545; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 ImportSDK V2 Plugins Demo</h1>
+        <p>Advanced features: Error Enhancement, Metrics Tracking, File Splitting, Import Orchestration</p>
+    </div>
+
+    <!-- Plugin Status Dashboard -->
+    <div class="container">
+        <h2>📊 Plugin Status Dashboard</h2>
+        <div id="plugin-status"></div>
+    </div>
+
+    <!-- Feature Overview -->
+    <div class="container">
+        <h2>🎯 V2 Features Overview</h2>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-title">🔍 Error Enhancement</div>
+                <div class="feature-description">Smart error categorization, severity levels, suggestions, and detailed modal reports</div>
+                <div class="feature-status">
+                    <div class="status-indicator status-active"></div>
+                    <span>Active</span>
+                </div>
+                <button class="btn" onclick="testErrorEnhancement()">Test Error Demo</button>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-title">📈 Enhanced Metrics</div>
+                <div class="feature-description">Field statistics, data quality scoring, performance tracking, real-time updates</div>
+                <div class="feature-status">
+                    <div class="status-indicator status-active"></div>
+                    <span>Active</span>
+                </div>
+                <button class="btn" onclick="testMetricsDemo()">Test Metrics Demo</button>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-title">📁 File Splitting</div>
+                <div class="feature-description">Automatic large file splitting, chunk processing, memory optimization</div>
+                <div class="feature-status">
+                    <div class="status-indicator status-idle"></div>
+                    <span>Idle</span>
+                </div>
+                <button class="btn" onclick="testFileSplitting()">Test File Splitting</button>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-title">🎮 Import Orchestrator</div>
+                <div class="feature-description">Import lifecycle management, auto-retry, progress monitoring, smart pausing</div>
+                <div class="feature-status">
+                    <div class="status-indicator status-idle"></div>
+                    <span>Idle</span>
+                </div>
+                <button class="btn" onclick="testOrchestrator()">Test Orchestrator</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Enhancement Demo -->
+    <div class="container">
+        <h2>🔍 Error Enhancement Plugin</h2>
+        <div class="demo-section">
+            <h3>Smart Error Analysis</h3>
+            <p>Advanced error categorization with severity levels and suggestions:</p>
+            
+            <div class="error-demo">
+                <h4>Sample Errors (Click to enhance):</h4>
+                <div id="error-samples">
+                    <div class="error-item" onclick="enhanceError(this, 'tankNumber \'TANK_001\' already exists', {tankNumber: 'TANK_001'})">
+                        tankNumber 'TANK_001' already exists
+                    </div>
+                    <div class="error-item" onclick="enhanceError(this, 'Invalid email format: user@invalid', {email: 'user@invalid'})">
+                        Invalid email format: user@invalid
+                    </div>
+                    <div class="error-item" onclick="enhanceError(this, 'Network timeout after 5000ms', {})">
+                        Network timeout after 5000ms
+                    </div>
+                    <div class="error-item" onclick="enhanceError(this, 'Missing required field: latitude', {latitude: null})">
+                        Missing required field: latitude
+                    </div>
+                    <div class="error-item" onclick="enhanceError(this, 'Server error: 500 Internal Server Error', {})">
+                        Server error: 500 Internal Server Error
+                    </div>
+                </div>
+            </div>
+            
+            <button class="btn" onclick="generateErrorSummary()">Generate Error Summary</button>
+            <button class="btn secondary" onclick="clearErrorDemo()">Clear Demo</button>
+        </div>
+    </div>
+
+    <!-- Metrics Enhancement Demo -->
+    <div class="container">
+        <h2>📈 Enhanced Metrics Plugin</h2>
+        <div class="demo-section">
+            <h3>Real-time Metrics Dashboard</h3>
+            
+            <div class="metrics-dashboard" id="metrics-dashboard">
+                <div class="metric-card">
+                    <div class="metric-value" id="total-rows">0</div>
+                    <div class="metric-label">Total Rows</div>
+                    <div class="metric-change">+0/min</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="processing-speed">0</div>
+                    <div class="metric-label">Rows/Second</div>
+                    <div class="metric-change">↑ 0%</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="error-rate">0%</div>
+                    <div class="metric-label">Error Rate</div>
+                    <div class="metric-change">↓ 0%</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="data-quality">0</div>
+                    <div class="metric-label">Data Quality</div>
+                    <div class="metric-change">→ 0%</div>
+                </div>
+            </div>
+            
+            <h4>Data Quality Metrics</h4>
+            <div class="data-quality-grid" id="data-quality-grid">
+                <div class="quality-metric">
+                    <div class="quality-score quality-good" id="completeness">0%</div>
+                    <div class="quality-label">Completeness</div>
+                </div>
+                <div class="quality-metric">
+                    <div class="quality-score quality-good" id="consistency">0%</div>
+                    <div class="quality-label">Consistency</div>
+                </div>
+                <div class="quality-metric">
+                    <div class="quality-score quality-good" id="validity">0%</div>
+                    <div class="quality-label">Validity</div>
+                </div>
+                <div class="quality-metric">
+                    <div class="quality-score quality-good" id="overall-quality">0%</div>
+                    <div class="quality-label">Overall</div>
+                </div>
+            </div>
+            
+            <h4>Field Statistics</h4>
+            <div id="field-stats" style="background: #f8f9fa; padding: 15px; border-radius: 6px; margin: 15px 0;">
+                <p>Start an import to see field statistics...</p>
+            </div>
+            
+            <h4>Performance Timeline</h4>
+            <div class="mini-chart" id="performance-chart">
+                <div style="text-align: center; padding: 40px; color: #666;">No data yet</div>
+            </div>
+            
+            <button class="btn" onclick="startMetricsDemo()">Start Metrics Demo</button>
+            <button class="btn secondary" onclick="stopMetricsDemo()">Stop Demo</button>
+            <button class="btn secondary" onclick="resetMetrics()">Reset Metrics</button>
+        </div>
+    </div>
+
+    <!-- File Splitting Demo -->
+    <div class="container">
+        <h2>📁 File Splitting Plugin</h2>
+        <div class="demo-section">
+            <h3>Large File Processing</h3>
+            <p>Automatically splits large CSV files into manageable chunks:</p>
+            
+            <div class="file-upload" id="split-file-upload">
+                <input type="file" id="split-file-input" accept=".csv" style="display: none;">
+                <p>📄 Upload a CSV file to test splitting</p>
+                <p style="font-size: 12px; color: #666;">Files > 250 lines or 10MB will be split</p>
+            </div>
+            
+            <div id="splitting-results" style="display: none;">
+                <h4>Splitting Results:</h4>
+                <div id="chunk-info"></div>
+                
+                <div class="progress-bar">
+                    <div class="progress-fill" id="splitting-progress" style="width: 0%;"></div>
+                </div>
+                
+                <button class="btn success" onclick="processAllChunks()">Process All Chunks</button>
+                <button class="btn secondary" onclick="clearSplittingDemo()">Clear</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Orchestrator Demo -->
+    <div class="container">
+        <h2>🎮 Import Orchestrator Plugin</h2>
+        <div class="demo-section">
+            <h3>Smart Import Management</h3>
+            <p>Advanced import lifecycle with auto-retry, pausing, and monitoring:</p>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;">
+                <div>
+                    <h4>Import Status</h4>
+                    <div id="import-status">
+                        <div class="feature-status">
+                            <div class="status-indicator status-idle"></div>
+                            <span>Idle</span>
+                        </div>
+                    </div>
+                    
+                    <button class="btn" onclick="startOrchestratedImport()">Start Orchestrated Import</button>
+                    <button class="btn danger" onclick="pauseImport()">Pause</button>
+                    <button class="btn secondary" onclick="resumeImport()">Resume</button>
+                    <button class="btn secondary" onclick="cancelImport()">Cancel</button>
+                </div>
+                
+                <div>
+                    <h4>Import Configuration</h4>
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 6px;">
+                        <label><input type="checkbox" id="auto-retry" checked> Auto-retry (max 3)</label><br>
+                        <label><input type="checkbox" id="pause-on-error" checked> Pause on high error rate</label><br>
+                        <label><input type="checkbox" id="large-file-confirm" checked> Confirm large files</label><br>
+                        <label><input type="checkbox" id="progress-updates" checked> Progress updates</label>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="orchestrator-log" class="log-output"></div>
+        </div>
+    </div>
+
+    <!-- Recommendations Panel -->
+    <div class="container">
+        <h2>💡 Smart Recommendations</h2>
+        <div class="recommendations" id="recommendations">
+            <p>Start an import to see personalized recommendations...</p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="import-sdk.js"></script>
+    <script src="import-sdk-plugins.js"></script>
+    <script src="import-sdk-v2-plugins.js"></script>
+    
+    <script>
+        // Demo state
+        let currentFile = null;
+        let importInstance = null;
+        let metricsDemoInterval = null;
+        let orchestratorInstance = null;
+        let enhancedErrors = [];
+        
+        // Initialize demo
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if all plugins are loaded
+            if (typeof ImportSDKPlugins === 'undefined') {
+                console.error('ImportSDKPlugins not loaded. Please ensure import-sdk-plugins.js is loaded before this script.');
+                return;
+            }
+            
+            if (typeof ImportSDKV2 === 'undefined') {
+                console.error('ImportSDKV2 not loaded. Please ensure import-sdk-v2-plugins.js is loaded before this script.');
+                return;
+            }
+            
+            initializePluginStatus();
+            setupFileUploads();
+            setupRealTimeMonitoring();
+        });
+        
+        // Show plugin status
+        function initializePluginStatus() {
+            const statusDiv = document.getElementById('plugin-status');
+            
+            if (typeof ImportSDKV2 === 'undefined') {
+                statusDiv.innerHTML = '<p style="color: red;">Error: ImportSDKV2 not loaded</p>';
+                return;
+            }
+            
+            const v2Plugins = ImportSDKV2.getV2Plugins();
+            
+            statusDiv.innerHTML = v2Plugins.map(plugin => `
+                <div style="display: inline-block; margin: 5px; padding: 8px 12px; background: #e3f2fd; border-radius: 4px;">
+                    <strong>${plugin.name}</strong> (${plugin.type})
+                    <div class="status-indicator status-active" style="display: inline-block; margin-left: 8px;"></div>
+                </div>
+            `).join('');
+        }
+        
+        // Setup file uploads
+        function setupFileUploads() {
+            // Splitting file upload
+            const splitUpload = document.getElementById('split-file-upload');
+            const splitInput = document.getElementById('split-file-input');
+            
+            splitUpload.addEventListener('click', () => splitInput.click());
+            
+            splitUpload.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                splitUpload.classList.add('dragover');
+            });
+            
+            splitUpload.addEventListener('dragleave', () => {
+                splitUpload.classList.remove('dragover');
+            });
+            
+            splitUpload.addEventListener('drop', (e) => {
+                e.preventDefault();
+                splitUpload.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleSplitFile(files[0]);
+                }
+            });
+            
+            splitInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleSplitFile(e.target.files[0]);
+                }
+            });
+        }
+        
+        // Setup real-time monitoring
+        function setupRealTimeMonitoring() {
+            ImportSDKV2.enableRealTimeMonitoring((metrics) => {
+                updateMetricsDashboard(metrics);
+            });
+            
+            ImportSDKV2.enableProgressMonitoring((progress) => {
+                updateProgressDisplay(progress);
+            });
+        }
+        
+        // Error Enhancement Demo
+        function enhanceError(element, message, rowData) {
+            const errorPlugin = ImportSDK ? ImportSDK.plugins.find(p => p.name === 'errorEnhancer') : null;
+            if (!errorPlugin) return;
+            
+            const enhanced = errorPlugin.formatError(
+                { message },
+                { rowData, lineNumber: Math.floor(Math.random() * 1000) + 1 },
+                null,
+                errorPlugin.config
+            );
+            
+            enhancedErrors.push(enhanced);
+            
+            element.innerHTML = `
+                <span class="error-severity severity-${enhanced.severity}">${enhanced.severity}</span>
+                <strong>${enhanced.errorType}:</strong> ${enhanced.message}
+                ${enhanced.field ? `<br><small>Field: ${enhanced.field}</small>` : ''}
+                ${enhanced.suggestions.length > 0 ? `<br><small>Suggestion: ${enhanced.suggestions[0]}</small>` : ''}
+            `;
+            
+            element.style.cursor = 'default';
+            element.onclick = null;
+        }
+        
+        function generateErrorSummary() {
+            const errorPlugin = ImportSDK ? ImportSDK.plugins.find(p => p.name === 'errorEnhancer') : null;
+            if (!errorPlugin || enhancedErrors.length === 0) {
+                alert('No errors to summarize or plugin not loaded');
+                return;
+            }
+            
+            errorPlugin.renderErrorSummary(enhancedErrors, null, errorPlugin.config);
+        }
+        
+        function clearErrorDemo() {
+            enhancedErrors = [];
+            document.getElementById('error-samples').innerHTML = `
+                <div class="error-item" onclick="enhanceError(this, 'tankNumber \'TANK_001\' already exists', {tankNumber: 'TANK_001'})">
+                    tankNumber 'TANK_001' already exists
+                </div>
+                <div class="error-item" onclick="enhanceError(this, 'Invalid email format: user@invalid', {email: 'user@invalid'})">
+                    Invalid email format: user@invalid
+                </div>
+                <div class="error-item" onclick="enhanceError(this, 'Network timeout after 5000ms', {})">
+                    Network timeout after 5000ms
+                </div>
+                <div class="error-item" onclick="enhanceError(this, 'Missing required field: latitude', {latitude: null})">
+                    Missing required field: latitude
+                </div>
+                <div class="error-item" onclick="enhanceError(this, 'Server error: 500 Internal Server Error', {})">
+                    Server error: 500 Internal Server Error
+                </div>
+            `;
+        }
+        
+        // Metrics Demo
+        function startMetricsDemo() {
+            const metricsPlugin = ImportSDK ? ImportSDK.plugins.find(p => p.name === 'enhancedMetrics') : null;
+            if (!metricsPlugin) return;
+            
+            // Initialize metrics
+            metricsPlugin.init(null, metricsPlugin.config);
+            
+            // Simulate data processing
+            let rowCount = 0;
+            metricsDemoInterval = setInterval(() => {
+                rowCount += Math.floor(Math.random() * 10) + 5;
+                
+                // Simulate field processing
+                const fields = ['tankNumber', 'latitude', 'longitude', 'volume', 'email'];
+                fields.forEach(field => {
+                    const value = field === 'email' 
+                        ? `user${rowCount}@example.com`
+                        : field === 'volume'
+                        ? Math.random() * 1000
+                        : Math.random() * 100;
+                    
+                    metricsPlugin.onFieldProcess(field, value, null, metricsPlugin.config);
+                });
+                
+                // Simulate occasional errors
+                if (Math.random() < 0.1) {
+                    metricsPlugin.onError(
+                        { message: 'Random error for demo' },
+                        { rowData: { tankNumber: `TANK_${rowCount}` } },
+                        null,
+                        metricsPlugin.config
+                    );
+                }
+                
+                // Simulate processing time
+                metricsPlugin.onProcessingTime('transform', Math.random() * 50, null, metricsPlugin.config);
+                
+            }, 1000);
+        }
+        
+        function stopMetricsDemo() {
+            if (metricsDemoInterval) {
+                clearInterval(metricsDemoInterval);
+                metricsDemoInterval = null;
+            }
+        }
+        
+        function resetMetrics() {
+            stopMetricsDemo();
+            const metricsPlugin = ImportSDK ? ImportSDK.plugins.find(p => p.name === 'enhancedMetrics') : null;
+            if (metricsPlugin) {
+                metricsPlugin.init(null, metricsPlugin.config);
+            }
+            updateMetricsDashboard({});
+        }
+        
+        function updateMetricsDashboard(metrics) {
+            // Update basic metrics
+            if (metrics.fieldStats && Object.keys(metrics.fieldStats).length > 0) {
+                const totalRows = Object.values(metrics.fieldStats)
+                    .reduce((sum, stats) => sum + stats.count, 0);
+                document.getElementById('total-rows').textContent = totalRows;
+            } else {
+                document.getElementById('total-rows').textContent = '0';
+            }
+            
+            if (metrics.performance && metrics.performance.throughput !== undefined) {
+                document.getElementById('processing-speed').textContent = metrics.performance.throughput;
+            } else {
+                document.getElementById('processing-speed').textContent = '0';
+            }
+            
+            if (metrics.dataQuality && metrics.dataQuality.overall !== undefined) {
+                document.getElementById('data-quality').textContent = metrics.dataQuality.overall.toFixed(0);
+                document.getElementById('completeness').textContent = (metrics.dataQuality.completeness || 0).toFixed(0) + '%';
+                document.getElementById('consistency').textContent = (metrics.dataQuality.consistency || 0).toFixed(0) + '%';
+                document.getElementById('validity').textContent = (metrics.dataQuality.validity || 0).toFixed(0) + '%';
+                document.getElementById('overall-quality').textContent = metrics.dataQuality.overall.toFixed(0) + '%';
+                
+                // Update quality colors
+                updateQualityColors(metrics.dataQuality);
+            } else {
+                // Reset to default values when no data
+                document.getElementById('data-quality').textContent = '0';
+                document.getElementById('completeness').textContent = '0%';
+                document.getElementById('consistency').textContent = '0%';
+                document.getElementById('validity').textContent = '0%';
+                document.getElementById('overall-quality').textContent = '0%';
+            }
+            
+            // Update field statistics
+            if (metrics.fieldStats && Object.keys(metrics.fieldStats).length > 0) {
+                updateFieldStats(metrics.fieldStats);
+            } else {
+                document.getElementById('field-stats').innerHTML = '<p>No field statistics available</p>';
+            }
+            
+            // Update recommendations
+            if (metrics.recommendations && Array.isArray(metrics.recommendations) && metrics.recommendations.length > 0) {
+                updateRecommendations(metrics.recommendations);
+            } else {
+                document.getElementById('recommendations').innerHTML = '<p>No recommendations at this time.</p>';
+            }
+        }
+        
+        function updateQualityColors(quality) {
+            const updateColor = (id, value) => {
+                const element = document.getElementById(id);
+                element.className = 'quality-score';
+                if (value >= 90) element.classList.add('quality-excellent');
+                else if (value >= 70) element.classList.add('quality-good');
+                else if (value >= 50) element.classList.add('quality-fair');
+                else element.classList.add('quality-poor');
+            };
+            
+            updateColor('completeness', quality.completeness);
+            updateColor('consistency', quality.consistency);
+            updateColor('validity', quality.validity);
+            updateColor('overall-quality', quality.overall);
+        }
+        
+        function updateFieldStats(fieldStats) {
+            const container = document.getElementById('field-stats');
+            const statsHtml = Object.entries(fieldStats).map(([field, stats]) => `
+                <div style="margin: 10px 0; padding: 10px; background: white; border-radius: 4px;">
+                    <strong>${field}:</strong> 
+                    ${stats.count} rows, 
+                    ${stats.completeness}% complete, 
+                    ${stats.uniqueness}% unique
+                    ${stats.avgLength ? `, avg length: ${stats.avgLength}` : ''}
+                </div>
+            `).join('');
+            
+            container.innerHTML = statsHtml || '<p>No field statistics available</p>';
+        }
+        
+        function updateRecommendations(recommendations) {
+            const container = document.getElementById('recommendations');
+            if (recommendations.length === 0) {
+                container.innerHTML = '<p>No recommendations at this time.</p>';
+                return;
+            }
+            
+            const html = recommendations.map(rec => `
+                <div class="recommendation">
+                    <div class="recommendation-type">${rec.type}</div>
+                    <div>${rec.message}</div>
+                    <small>Action: ${rec.action}</small>
+                </div>
+            `).join('');
+            
+            container.innerHTML = html;
+        }
+        
+        // File Splitting Demo
+        async function handleSplitFile(file) {
+            console.log('handleSplitFile called with file:', file);
+            
+            const splitter = ImportSDK ? ImportSDK.plugins.find(p => p.name === 'fileSplitter') : null;
+            console.log('splitter found:', !!splitter);
+            
+            if (!splitter) {
+                console.error('fileSplitter plugin not found');
+                return;
+            }
+            
+            document.getElementById('splitting-results').style.display = 'block';
+            
+            const shouldSplit = splitter.shouldSplit(file, null, splitter.config);
+            console.log('shouldSplit:', shouldSplit);
+            
+            if (shouldSplit) {
+                console.log('Splitting file...');
+                const chunks = await splitter.split(file, null, splitter.config);
+                console.log('Chunks created:', chunks);
+                displaySplittingResults(chunks, file);
+            } else {
+                console.log('File does not require splitting');
+                document.getElementById('chunk-info').innerHTML = `
+                    <p>File does not require splitting (${file.size} bytes, estimated lines: ${splitter.estimateLineCount(file, splitter.config)})</p>
+                `;
+            }
+        }
+        
+        function displaySplittingResults(chunks, originalFile) {
+            console.log('displaySplittingResults called with chunks:', chunks);
+            const infoDiv = document.getElementById('chunk-info');
+            infoDiv.innerHTML = `
+                <p><strong>Original file:</strong> ${originalFile.name} (${(originalFile.size / 1024).toFixed(1)}KB)</p>
+                <p><strong>Split into:</strong> ${chunks.length} chunks</p>
+                ${chunks.map((chunk, index) => `
+                    <div style="margin: 5px 0; padding: 8px; background: #f8f9fa; border-radius: 4px;">
+                        Chunk ${chunk.chunkNumber}: ${chunk.lineCount} lines (lines ${chunk.startLine}-${chunk.endLine})
+                    </div>
+                `).join('')}
+            `;
+            
+            // Store chunks for processing
+            window.currentChunks = chunks;
+            console.log('Chunks stored in window.currentChunks:', window.currentChunks);
+        }
+        
+        async function processAllChunks() {
+            console.log('processAllChunks called');
+            console.log('window.currentChunks:', window.currentChunks);
+            
+            if (!window.currentChunks) {
+                console.error('No chunks to process');
+                return;
+            }
+            
+            const splitter = ImportSDK ? ImportSDK.plugins.find(p => p.name === 'fileSplitter') : null;
+            console.log('splitter found:', !!splitter);
+            console.log('ImportSDK plugins:', ImportSDK ? ImportSDK.plugins.map(p => p.name) : 'ImportSDK not found');
+            
+            if (!splitter) {
+                console.error('fileSplitter plugin not found');
+                return;
+            }
+            
+            const progressBar = document.getElementById('splitting-progress');
+            console.log('progress bar found:', !!progressBar);
+            
+            progressBar.style.width = '0%';
+            
+            try {
+                console.log('Starting to process chunks...');
+                const totalChunks = window.currentChunks.length;
+                let processedChunks = 0;
+                
+                const results = await splitter.processChunks(window.currentChunks, null, {
+                    ...splitter.config,
+                    onProgress: (chunkNumber) => {
+                        processedChunks++;
+                        const progress = (processedChunks / totalChunks) * 100;
+                        progressBar.style.width = progress + '%';
+                        console.log(`Progress: ${processedChunks}/${totalChunks} chunks (${progress.toFixed(1)}%)`);
+                    }
+                });
+                console.log('Processing completed:', results);
+                
+                // Update progress
+                progressBar.style.width = '100%';
+                
+                // Show results
+                const successful = results.filter(r => r.success).length;
+                const failed = results.filter(r => !r.success).length;
+                
+                document.getElementById('chunk-info').innerHTML += `
+                    <div style="margin-top: 15px; padding: 10px; background: #d4edda; border-radius: 4px;">
+                        <strong>Processing Complete:</strong> ${successful} successful, ${failed} failed
+                    </div>
+                `;
+                
+            } catch (error) {
+                console.error('Chunk processing error:', error);
+            }
+        }
+        
+        function clearSplittingDemo() {
+            document.getElementById('splitting-results').style.display = 'none';
+            document.getElementById('splitting-progress').style.width = '0%';
+            window.currentChunks = null;
+        }
+        
+        // Import Orchestrator Demo
+        function startOrchestratedImport() {
+            const config = {
+                autoRetry: document.getElementById('auto-retry').checked,
+                pauseOnError: document.getElementById('pause-on-error').checked,
+                confirmOnLargeFile: document.getElementById('large-file-confirm').checked,
+                progressUpdates: document.getElementById('progress-updates').checked
+            };
+            
+            ImportSDKV2.configureV2({
+                'importOrchestrator': config
+            });
+            
+            // Simulate import start
+            const mockFile = { name: 'demo.csv', size: 5 * 1024 * 1024 };
+            
+            updateImportStatus('running');
+            logOrchestrator('info', 'Starting orchestrated import with configuration:', config);
+            
+            // Simulate import progress
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += Math.random() * 10;
+                
+                if (progress >= 100) {
+                    clearInterval(progressInterval);
+                    updateImportStatus('completed');
+                    logOrchestrator('success', 'Import completed successfully');
+                } else {
+                    // Simulate occasional errors
+                    if (Math.random() < 0.2) {
+                        logOrchestrator('warning', `Simulated error at ${progress.toFixed(1)}%`);
+                    }
+                }
+            }, 500);
+        }
+        
+        function pauseImport() {
+            updateImportStatus('paused');
+            logOrchestrator('warning', 'Import paused by user');
+        }
+        
+        function resumeImport() {
+            updateImportStatus('running');
+            logOrchestrator('info', 'Import resumed by user');
+        }
+        
+        function cancelImport() {
+            updateImportStatus('idle');
+            logOrchestrator('error', 'Import cancelled by user');
+        }
+        
+        function updateImportStatus(status) {
+            const statusDiv = document.getElementById('import-status');
+            const statusClass = `status-${status}`;
+            const statusText = status.charAt(0).toUpperCase() + status.slice(1);
+            
+            statusDiv.innerHTML = `
+                <div class="feature-status">
+                    <div class="status-indicator ${statusClass}"></div>
+                    <span>${statusText}</span>
+                </div>
+            `;
+        }
+        
+        function logOrchestrator(level, message, data = null) {
+            const logDiv = document.getElementById('orchestrator-log');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${level}`;
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            
+            if (data) {
+                logEntry.textContent += ` ${JSON.stringify(data)}`;
+            }
+            
+            logDiv.appendChild(logEntry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        // Test functions
+        function testErrorEnhancement() {
+            document.querySelector('.container:nth-child(3) h2').scrollIntoView();
+        }
+        
+        function testMetricsDemo() {
+            document.querySelector('.container:nth-child(4) h2').scrollIntoView();
+            startMetricsDemo();
+        }
+        
+        function testFileSplitting() {
+            document.querySelector('.container:nth-child(5) h2').scrollIntoView();
+        }
+        
+        function testOrchestrator() {
+            document.querySelector('.container:nth-child(6) h2').scrollIntoView();
+        }
+        
+        function updateProgressDisplay(progress) {
+            // Update progress displays if needed
+            console.log('Progress update:', progress);
+        }
+    </script>
+</body>
+</html>

@@ -27,6 +27,7 @@
 class ImportSDK {
     // Static plugin registry
     static plugins = [];
+    static pluginTypes = ['field', 'row', 'batch', 'file', 'import', 'error', 'metrics'];
 
     /**
      * Register a plugin with the SDK
@@ -48,8 +49,8 @@ class ImportSDK {
             throw new Error('Plugin must have a name');
         }
 
-        if (!['field', 'row', 'batch'].includes(plugin.type)) {
-            throw new Error('Plugin type must be one of: field, row, batch');
+        if (!ImportSDK.pluginTypes.includes(plugin.type)) {
+            throw new Error(`Plugin type must be one of: ${ImportSDK.pluginTypes.join(', ')}`);
         }
 
         // Check for duplicate plugin names

@@ -43,6 +43,7 @@
                     <li><a href="#data-filtering">Data Filtering</a></li>
                     <li><a href="#file-mappings">File Mappings</a></li>
                     <li><a href="#plugins">Plugin System</a></li>
+                    <li><a href="#ref-poc-plugins">Ref-POC Plugins</a></li>
                     <li><a href="#metrics">Execution Metrics</a></li>
                     <li><a href="#api-reference">API Reference</a></li>
                     <li><a href="#examples">Examples</a></li>
@@ -59,6 +60,7 @@
                 <li><a href="#data-filtering" class="hover:text-primary">Data Filtering</a></li>
                 <li><a href="#file-mappings" class="hover:text-primary">File Mappings</a></li>
                 <li><a href="#plugins" class="hover:text-primary">Plugin System</a></li>
+                <li><a href="#ref-poc-plugins" class="hover:text-primary">Ref-POC Plugins</a></li>
                 <li><a href="#metrics" class="hover:text-primary">Execution Metrics</a></li>
                 <li><a href="#api-reference" class="hover:text-primary">API Reference</a></li>
                 <li><a href="#examples" class="hover:text-primary">Examples</a></li>
@@ -588,6 +590,198 @@ ImportSDK.removePlugin('dateNormalizer');
 
 // Clear all plugins
 ImportSDK.clearPlugins();</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Ref-POC Plugins -->
+            <section id="ref-poc-plugins" class="py-20 px-4 bg-gray-50">
+                <div class="container mx-auto max-w-4xl">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-8">🚀 Ref-POC Inspired Plugins</h2>
+                    <p class="text-gray-600 mb-8">Enhanced plugins inspired by the ref-poc implementation, providing advanced file validation and smart field mapping capabilities.</p>
+                    
+                    <div class="space-y-8">
+                        <!-- File Validation Plugin -->
+                        <div class="bg-white rounded-xl shadow-lg p-8">
+                            <h3 class="text-2xl font-semibold text-gray-800 mb-4">📁 File Validation Plugin</h3>
+                            <p class="text-gray-600 mb-4">Comprehensive CSV file validation before processing, inspired by ref-poc's validation approach.</p>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                <div>
+                                    <h4 class="font-semibold text-gray-700 mb-2">Features</h4>
+                                    <ul class="text-sm text-gray-600 space-y-1">
+                                        <li>✅ MIME type validation</li>
+                                        <li>✅ File size limits</li>
+                                        <li>✅ CSV structure validation</li>
+                                        <li>✅ Header column validation</li>
+                                        <li>✅ Required column checking</li>
+                                        <li>✅ Unknown column warnings</li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h4 class="font-semibold text-gray-700 mb-2">Configuration</h4>
+                                    <ul class="text-sm text-gray-600 space-y-1">
+                                        <li><code>allowedMimeTypes</code> - Accepted file types</li>
+                                        <li><code>requiredColumns</code> - Must-have columns</li>
+                                        <li><code>allowedColumns</code> - Permitted columns</li>
+                                        <li><code>warnUnknownColumns</code> - Warning for unknown columns</li>
+                                        <li><code>maxFileSize</code> - Maximum file size</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            
+                            <div class="mockup-code">
+                                <pre class="px-4 py-3">// File validation plugin is automatically loaded
+// Configure validation rules
+ImportSDKPlugins.configure('csvFileValidator', {
+    requiredColumns: ['tankNumber'],
+    allowedColumns: ['tankNumber', 'latitude', 'longitude', 'volume'],
+    warnUnknownColumns: true,
+    maxFileSize: 10 * 1024 * 1024 // 10MB
+});
+
+// Validation runs automatically before import
+const importSDK = ImportSDK.init(container, {
+    // File validation will run first
+    apiEndpoint: '/api/import'
+});</pre>
+                            </div>
+                        </div>
+
+                        <!-- Smart Field Mapping Plugin -->
+                        <div class="bg-white rounded-xl shadow-lg p-8">
+                            <h3 class="text-2xl font-semibold text-gray-800 mb-4">🔄 Smart Field Mapping Plugin</h3>
+                            <p class="text-gray-600 mb-4">Intelligent field mapping and type conversion, inspired by ref-poc's formatValue method.</p>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                <div>
+                                    <h4 class="font-semibold text-gray-700 mb-2">Field Aliases</h4>
+                                    <ul class="text-sm text-gray-600 space-y-1">
+                                        <li><code>chipNumber</code> ← rfidNumber, uhfNumber, memoryChipNumber</li>
+                                        <li><code>tankNumber</code> ← tank_id, TankID, tankId</li>
+                                        <li><code>latitude</code> ← lat, Latitude, LAT</li>
+                                        <li><code>longitude</code> ← lng, lon, Longitude, LNG</li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h4 class="font-semibold text-gray-700 mb-2">Auto Type Detection</h4>
+                                    <ul class="text-sm text-gray-600 space-y-1">
+                                        <li><code>boolean</code> - active, enabled, visible</li>
+                                        <li><code>integer</code> - makeId, typeId, categoryId, volume</li>
+                                        <li><code>float</code> - latitude, longitude</li>
+                                        <li><code>date</code> - commissioningDate, created_at</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            
+                            <div class="mockup-code">
+                                <pre class="px-4 py-3">// Smart field mapping is automatically loaded
+// Configure field aliases and type detection
+ImportSDKPlugins.configure('smartFieldMapping', {
+    aliases: {
+        chipNumber: ['rfidNumber', 'uhfNumber', 'memoryChipNumber'],
+        tankNumber: ['tank_id', 'TankID', 'tankId']
+    },
+    autoTypeDetection: {
+        boolean: ['active', 'enabled'],
+        integer: ['volume', 'makeId'],
+        float: ['latitude', 'longitude']
+    }
+});
+
+// Example transformation
+// Input: { rfidNumber: 'RFID_001', lat: '48.8566', active: 'true' }
+// Output: { chipNumber: 'RFID_001', latitude: 48.8566, active: true }</pre>
+                            </div>
+                        </div>
+
+                        <!-- Enhanced Plugin System -->
+                        <div class="bg-white rounded-xl shadow-lg p-8">
+                            <h3 class="text-2xl font-semibold text-gray-800 mb-4">🔧 Enhanced Plugin System</h3>
+                            <p class="text-gray-600 mb-4">Extended plugin system supporting new plugin types for more flexibility.</p>
+                            
+                            <div class="overflow-x-auto mb-6">
+                                <table class="table w-full">
+                                    <thead>
+                                        <tr class="border-b">
+                                            <th class="text-left py-2">Plugin Type</th>
+                                            <th class="text-left py-2">Purpose</th>
+                                            <th class="text-left py-2">Hooks</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr class="border-b">
+                                            <td class="py-2"><code class="bg-gray-100 px-2 py-1 rounded">file</code></td>
+                                            <td class="py-2">File-level operations</td>
+                                            <td class="py-2">validate, shouldSplit, split</td>
+                                        </tr>
+                                        <tr class="border-b">
+                                            <td class="py-2"><code class="bg-gray-100 px-2 py-1 rounded">import</code></td>
+                                            <td class="py-2">Import lifecycle management</td>
+                                            <td class="py-2">onImportStart, onImportProgress, onImportComplete</td>
+                                        </tr>
+                                        <tr class="border-b">
+                                            <td class="py-2"><code class="bg-gray-100 px-2 py-1 rounded">error</code></td>
+                                            <td class="py-2">Error handling and formatting</td>
+                                            <td class="py-2">formatError, renderErrorSummary</td>
+                                        </tr>
+                                        <tr class="border-b">
+                                            <td class="py-2"><code class="bg-gray-100 px-2 py-1 rounded">metrics</code></td>
+                                            <td class="py-2">Custom metrics collection</td>
+                                            <td class="py-2">init, onFieldProcess, onError, getMetrics</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <div class="mockup-code">
+                                <pre class="px-4 py-3">// New plugin types available
+ImportSDK.use({
+    name: 'myFilePlugin',
+    type: 'file',  // New type!
+    validate(file, sdk, config) {
+        // File validation logic
+        return { isValid: true, warnings: [] };
+    }
+});
+
+ImportSDK.use({
+    name: 'myErrorPlugin', 
+    type: 'error', // New type!
+    formatError(error, context, sdk, config) {
+        // Enhanced error formatting
+        return { ...error, category: 'validation' };
+    }
+});
+
+// Execute specific plugin types
+await sdk.executeFilePlugins('validate', file);
+await sdk.executeErrorPlugins('formatError', error, context);</pre>
+                            </div>
+                        </div>
+
+                        <!-- Plugin Management -->
+                        <div class="bg-white rounded-xl shadow-lg p-8">
+                            <h3 class="text-2xl font-semibold text-gray-800 mb-4">📋 Plugin Management</h3>
+                            <p class="text-gray-600 mb-4">Utilities for managing and configuring plugins.</p>
+                            
+                            <div class="mockup-code">
+                                <pre class="px-4 py-3">// List all available plugins
+const plugins = ImportSDKPlugins.getAvailablePlugins();
+console.log(plugins);
+// [{ name: 'csvFileValidator', type: 'file' }, ...]
+
+// Configure a specific plugin
+ImportSDKPlugins.configure('csvFileValidator', {
+    maxFileSize: 20 * 1024 * 1024,
+    requiredColumns: ['tankNumber', 'latitude']
+});
+
+// Get a specific plugin instance
+const validator = ImportSDKPlugins.getPlugin('csvFileValidator');
+console.log(validator.config);</pre>
                             </div>
                         </div>
                     </div>
