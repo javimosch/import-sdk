@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Import SDK Demo</title>
+        <link rel="stylesheet" href="import-ui.css" />
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+        <style>
+            body {
+                margin: 0;
+                padding: 20px;
+                background: #f5f5f5;
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    sans-serif;
+            }
+
+            .demo-header {
+                text-align: center;
+                margin-bottom: 40px;
+            }
+
+            .demo-header h1 {
+                color: #2d3748;
+                margin: 0 0 10px 0;
+            }
+
+            .demo-header p {
+                color: #718096;
+                margin: 0;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="demo-header">
+            <h1>Import SDK Demo</h1>
+            <p>Reusable CSV Import Library</p>
+        </div>
+
+        <!-- SDK will be injected here -->
+        <div id="import-container"></div>
+
+        <script src="import-sdk.js"></script>
+        <script>
+            // Initialize the SDK with configuration
+            ImportSDK.init(document.getElementById("import-container"), {
+                // API Configuration
+                apiEndpoint:
+                    "https://isoprod-apiv3.geored.fr/geored/bin/service/import",
+                chunkSize: 100,
+                updateByTankNumber: false,
+
+                // Enable metrics backend
+                metricsBackend: {
+                    enabled: true,
+                    baseURL: "http://localhost:3012",
+                    includeProgress: true,
+                },
+
+                // Multiple File Mappings - Auto-selects based on filename
+                fileMappings: [
+                    {
+                        name: "Standard Format",
+                        pattern: /test\.csv$/,
+                        fieldMapping: {}, // No mapping needed
+                        transformers: {
+                            typeId: (value) => parseInt(value) || null,
+                            latitude: (value) => parseFloat(value) || null,
+                            longitude: (value) => parseFloat(value) || null,
+                        },
+                    },
+                    {
+                        name: "Custom Format",
+                        pattern: /test2\.csv$/,
+                        fieldMapping: {
+                            "Tank ID": "tankNumber",
+                            Type: "typeId",
+                            Location: "city",
+                            Lat: "latitude",
+                            Long: "longitude",
+                        },
+                        transformers: {
+                            typeId: (value) => parseInt(value) || null,
+                            latitude: (value) => parseFloat(value) || null,
+                            longitude: (value) => parseFloat(value) || null,
+                        },
+                        validate: {
+                            latitude: [(v) => !!v, "Latitude is required"],
+                            tankNumber: [(v) => !!v, "Tank Number is required"],
+                        },
+                    },
+                ],
+                // Internationalization (i18n)
+                locale: "fr", // Change to 'fr' to test French
+                translations: {
+                    fr: {
+                        uploadPrompt:
+                            "Cliquez pour télécharger ou glissez-déposez",
+                        uploadHint: "Fichiers CSV uniquement",
+                        checkFile: "Vérifier le fichier",
+                        startImport: "Démarrer l'importation",
+                        importing: "Importation...",
+                        checking: "Vérification...",
+                        progressTitle: "Progression",
+                        importProgress: "Progression de l'importation",
+                        validationProgress: "Progression de la validation",
+                        success: "Succès",
+                        errors: "Erreurs",
+                        total: "Total",
+                        logs: "Journaux",
+                        clearLogs: "Effacer",
+                        ready: "Prêt à démarrer...",
+                        fileSelected:
+                            "Fichier sélectionné : {filename} ({size} KB){mapping}",
+                        mappingInfo: " (Cartographie : {name})",
+                        fileRemoved: "Fichier supprimé.",
+                        logsCleared: "Journaux effacés...",
+                        parsingComplete: "Analyse terminée. Finalisation...",
+                        importFinished: "Importation terminée.",
+                        validationFinished: "Validation terminée.",
+                        errorCsvOnly: "Veuillez télécharger un fichier CSV.",
+                        usingMapping: "Utilisation de la cartographie : {name}",
+                        parsingError: "Erreur d'analyse : {message}",
+                        validationError: "Erreur de validation : {error}",
+                        networkError: "Erreur réseau : {message}",
+                        serverError: "Erreur serveur : {status} {statusText}",
+                        batchValidationFailed:
+                            "Échec de la validation du lot : {status}",
+                        handlerError: "Erreur du gestionnaire : {message}",
+                        invalidHandlerResponse:
+                            "Réponse invalide du gestionnaire, utilisation des valeurs par défaut",
+                        sendHandlerError:
+                            "Erreur du gestionnaire d'envoi : {message}",
+                    },
+                },
+
+                // Fallback mapping (if no pattern matches)
+                fieldMapping: {},
+                transformers: {},
+
+                // Custom Send Handler (optional)
+                // Uncomment to use custom send logic instead of default fetch
+                /*
+            sendHandler: async (batch, config) => {
+                // Example: Use your own API wrapper
+                console.log('Sending batch:', batch);
+
+                // Simulate API call
+                const response = await fetch(config.apiEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        // Add custom headers here
+                        // 'Authorization': 'Bearer YOUR_TOKEN'
+                    },
+                    body: JSON.stringify({
+                        bins: batch,
+                        updateByTankNumber: config.updateByTankNumber
+                    })
+                });
+
+                const data = await response.json();
+
+                // Transform to SDK format
+                return {
+                    success: data.bins?.filter(b => !b.error).length || 0,
+                    errors: data.bins?.filter(b => b.error).map(b => ({
+                        message: b.errorMessage,
+                        tankNumber: b.bin?.tankNumber,
+                        data: b
+                    })) || []
+                };
+            },
+            */
+
+                // Callbacks (optional)
+                onProgress: (stats) => {
+                    console.log("Progress:", stats);
+                },
+                onComplete: (result) => {
+                    console.log("Import complete:", result);
+                    alert(
+                        `Import finished!\nSuccess: ${result.successCount}\nErrors: ${result.errorCount}`,
+                    );
+                },
+                onError: (error) => {
+                    console.error("Import error:", error);
+                },
+            });
+        </script>
+    </body>
+</html>
