@@ -228,10 +228,13 @@ class ImportSDK {
         this.state = {
             isProcessing: false,
             selectedFile: null,
+            // Row counters
             successCount: 0,
             errorCount: 0,
             totalCount: 0,
             filteredCount: 0,
+            currentCsvLine: 2, // header is line 1, first data row is line 2
+            // Stored data
             logs: [],
             successRows: [],
             errorRows: [],
@@ -1352,6 +1355,8 @@ class ImportSDK {
         this.state.successCount = 0;
         this.state.errorCount = 0;
         this.state.totalCount = 0;
+        this.state.filteredCount = 0;
+        this.state.currentCsvLine = 2; // reset CSV line counter (header is line 1)
         this.rowBuffer = [];
         
         // Initialize metrics for this import
@@ -1468,6 +1473,10 @@ class ImportSDK {
     async processRows(newRows, parser) {
         // Filter, Transform, and Validate rows
         for (const row of newRows) {
+            // Compute CSV line number for this row (header is line 1)
+            const csvLineNumber = this.state.currentCsvLine;
+            this.state.currentCsvLine += 1;
+
             const stopRowTiming = this.startTiming('rowProcessing');
             
             // 1. Apply filters first (before transform)
@@ -1477,8 +1486,11 @@ class ImportSDK {
             
             if (!filterResult.passed) {
                 this.state.filteredCount++;
-                this.state.filteredRows.push({ ...row, _filterReason: filterResult.reason });
-                this.log(this.t('rowFiltered', { reason: filterResult.reason }), 'info');
+                this.state.filteredRows.push({ ...row, _filterReason: filterResult.reason, _csvLineNumber: csvLineNumber });
+                this.log(
+                    this.t('rowFiltered', { reason: filterResult.reason }) + ` [Line ${csvLineNumber}]`,
+                    'info'
+                );
                 stopRowTiming();
                 continue; // Skip this row
             }
@@ -1497,12 +1509,13 @@ class ImportSDK {
 
             if (validation.isValid) {
                 if (this.state.mode === 'import') {
-                    this.rowBuffer.push(transformed);
+                    // Keep CSV line number on rows we send to the API
+                    this.rowBuffer.push({ ...transformed, _csvLineNumber: csvLineNumber });
                 } else {
                     // In check mode, just count success
                     this.state.successCount++;
                     this.state.totalCount++;
-                    this.state.successRows.push(transformed);
+                    this.state.successRows.push({ ...transformed, _csvLineNumber: csvLineNumber });
                 }
             } else {
                 // Invalid row - store only if resultExport includes 'errors'
@@ -1513,17 +1526,22 @@ class ImportSDK {
                     const errorRow = {
                         ...transformed,
                         _error: validation.error,
-                        _errorType: 'client-validation'
+                        _errorType: 'client-validation',
+                        _csvLineNumber: csvLineNumber
                     };
                     this.state.errorRows.push(errorRow);
                 }
                 
-                this.log(this.t('validationError', { error: validation.error }), 'error');
+                this.log(
+                    this.t('validationError', { error: validation.error }) + ` [Line ${csvLineNumber}]`,
+                    'error'
+                );
                 
                 // Send validation error sample to metrics backend
                 this.sendErrorSample(validation.error, 'client-validation', {
                     row: transformed,
-                    field: validation.field || 'unknown'
+                    field: validation.field || 'unknown',
+                    csvLineNumber
                 });
             }
         }
@@ -1736,16 +1754,14 @@ class ImportSDK {
     }
 
     /**
-     * Default send handler using fetch API
-     * @param {Array} batch - Transformed batch of rows
+     * Default send handler using Fetch API
+     * @param {Array} batch - Batch of transformed and validated rows
      * @param {Object} config - SDK configuration
      * @returns {Promise<{success: number, errors: Array}>}
      */
     async defaultSendHandler(batch, config) {
-        const payload = {
-            bins: batch,
-            updateByTankNumber: config.updateByTankNumber
-        };
+        // Generic payload: send batch under a neutral key
+        const payload = { items: batch };
 
         // Merge default headers with custom headers
         const headers = {
@@ -1767,32 +1783,50 @@ class ImportSDK {
         const result = { success: 0, errors: [] };
 
         if (response.ok || response.status === 422) {
-            if (data.bins && Array.isArray(data.bins)) {
-                data.bins.forEach(res => {
-                    if (res.error) {
+            // Try to locate an array of per-row results in a generic way
+            let items = [];
+            if (data && Array.isArray(data.items)) {
+                items = data.items;
+            } else if (Array.isArray(data)) {
+                items = data;
+            }
+
+            if (items.length > 0) {
+                items.forEach((res, index) => {
+                    const originalRow = batch[index] || {};
+                    const csvLineNumber = originalRow._csvLineNumber;
+
+                    const hasErrorFlag = !!res && res.error === true;
+                    const hasErrorMessage = !!res && typeof res.errorMessage === 'string';
+                    const isError = hasErrorFlag || hasErrorMessage;
+
+                    if (isError) {
+                        const message = res.message || res.errorMessage || this.t('serverErrorGeneric');
                         result.errors.push({
-                            tankNumber: res.bin?.tankNumber || 'N/A',
-                            message: res.errorMessage,
-                            data: res
+                            message,
+                            data: {
+                                ...res,
+                                _csvLineNumber: csvLineNumber,
+                                originalRow
+                            }
                         });
                     } else {
                         result.success++;
                     }
                 });
+            } else if (response.ok) {
+                // No per-row info: assume whole batch succeeded
+                result.success = batch.length;
             } else {
-                // Fallback if response structure is different
-                if (response.ok) {
-                    result.success = batch.length;
-                } else {
-                    result.errors = batch.map((_, i) => ({
-                        message: this.t('batchValidationFailed', { status: response.status }),
-                        data: null
-                    }));
-                }
+                // Validation-style HTTP status but no detailed items
+                result.errors = batch.map(() => ({
+                    message: this.t('batchValidationFailed', { status: response.status }),
+                    data: null
+                }));
             }
         } else {
-            // Server error
-            result.errors = batch.map((_, i) => ({
+            // Server error (non-2xx / non-422)
+            result.errors = batch.map(() => ({
                 message: this.t('serverError', { status: response.status, statusText: response.statusText }),
                 data: null
             }));
@@ -1899,29 +1933,27 @@ class ImportSDK {
         // Store error rows (if resultExport includes 'errors')
         if (this.config.resultExport.includes('errors')) {
             result.errors.forEach(err => {
-                // Extract the bin data properly, handling nested objects
-                let binData = {};
-                if (err.data && err.data.bin) {
-                    // Copy only the primitive values from the bin object
-                    binData = { ...err.data.bin };
-                    // Remove the nested id if it exists and is null
-                    if (binData.id === null) {
-                        delete binData.id;
-                    }
-                } else if (err.data) {
-                    // Fallback: try to use err.data directly but filter out complex objects
-                    binData = { ...err.data };
+                // Generic error row: use err.data as base without assuming its shape
+                const baseData = (err && typeof err.data === 'object' && err.data !== null)
+                    ? err.data
+                    : {};
+
+                const errorRow = {
+                    ...baseData,
+                    _error: err.message,
+                    _errorType: 'server-validation'
+                };
+
+                if (baseData._csvLineNumber != null) {
+                    errorRow._csvLineNumber = baseData._csvLineNumber;
                 }
                 
-                // Add error metadata
-                const errorRow = {
-                    ...binData,
-                    _error: err.message,
-                    _errorType: 'validation'
-                };
-                
                 this.state.errorRows.push(errorRow);
-                this.log(`Error: ${err.message}`, 'error');
+
+                const lineSuffix = errorRow._csvLineNumber != null
+                    ? ` [Line ${errorRow._csvLineNumber}]`
+                    : '';
+                this.log(`Error: ${err.message}${lineSuffix}`, 'error');
                 
                 // Send error detail to metrics backend (sample unique errors)
                 this.sendErrorSample(err.message, 'validation', errorRow);
