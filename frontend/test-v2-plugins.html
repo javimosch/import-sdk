@@ -546,6 +546,7 @@
                     <button class="btn danger" onclick="pauseImport()">Pause</button>
                     <button class="btn secondary" onclick="resumeImport()">Resume</button>
                     <button class="btn secondary" onclick="cancelImport()">Cancel</button>
+                    <button class="btn secondary" onclick="clearOrchestratorLog()">Clear Log</button>
                 </div>
                 
                 <div>
@@ -989,6 +990,18 @@
         
         // Import Orchestrator Demo
         function startOrchestratedImport() {
+            // Clear any existing interval
+            if (window.orchestratorInterval) {
+                clearInterval(window.orchestratorInterval);
+            }
+            
+            // Reset orchestrator state
+            window.orchestratorState = {
+                isPaused: false,
+                isCancelled: false,
+                progress: 0
+            };
+            
             const config = {
                 autoRetry: document.getElementById('auto-retry').checked,
                 pauseOnError: document.getElementById('pause-on-error').checked,
@@ -1006,37 +1019,85 @@
             updateImportStatus('running');
             logOrchestrator('info', 'Starting orchestrated import with configuration:', config);
             
-            // Simulate import progress
-            let progress = 0;
-            const progressInterval = setInterval(() => {
-                progress += Math.random() * 10;
+            // Simulate import progress with pause/resume support
+            window.orchestratorInterval = setInterval(() => {
+                // Check if paused or cancelled
+                if (window.orchestratorState.isPaused) {
+                    return; // Skip this iteration but don't clear interval
+                }
+                
+                if (window.orchestratorState.isCancelled) {
+                    clearInterval(window.orchestratorInterval);
+                    updateImportStatus('idle');
+                    logOrchestrator('error', 'Import cancelled');
+                    return;
+                }
+                
+                window.orchestratorState.progress += Math.random() * 10;
+                const progress = window.orchestratorState.progress;
                 
                 if (progress >= 100) {
-                    clearInterval(progressInterval);
+                    clearInterval(window.orchestratorInterval);
                     updateImportStatus('completed');
                     logOrchestrator('success', 'Import completed successfully');
                 } else {
                     // Simulate occasional errors
                     if (Math.random() < 0.2) {
                         logOrchestrator('warning', `Simulated error at ${progress.toFixed(1)}%`);
+                        
+                        // Check if should pause on error
+                        if (config.pauseOnError && Math.random() < 0.3) {
+                            window.orchestratorState.isPaused = true;
+                            updateImportStatus('paused');
+                            logOrchestrator('warning', 'Auto-paused due to high error rate');
+                        }
                     }
                 }
             }, 500);
         }
         
         function pauseImport() {
-            updateImportStatus('paused');
-            logOrchestrator('warning', 'Import paused by user');
+            if (window.orchestratorState) {
+                window.orchestratorState.isPaused = true;
+                updateImportStatus('paused');
+                logOrchestrator('warning', 'Import paused by user');
+            }
         }
         
         function resumeImport() {
-            updateImportStatus('running');
-            logOrchestrator('info', 'Import resumed by user');
+            if (window.orchestratorState) {
+                window.orchestratorState.isPaused = false;
+                updateImportStatus('running');
+                logOrchestrator('info', 'Import resumed by user');
+            }
         }
         
         function cancelImport() {
-            updateImportStatus('idle');
-            logOrchestrator('error', 'Import cancelled by user');
+            if (window.orchestratorState) {
+                window.orchestratorState.isCancelled = true;
+                // Immediate UI feedback
+                updateImportStatus('idle');
+                logOrchestrator('error', 'Import cancelled by user');
+                
+                // Clear the interval immediately for faster response
+                if (window.orchestratorInterval) {
+                    clearInterval(window.orchestratorInterval);
+                    window.orchestratorInterval = null;
+                }
+                
+                // Add a visual indicator in the log
+                setTimeout(() => {
+                    logOrchestrator('info', 'Import process has been stopped');
+                }, 100);
+            }
+        }
+        
+        function clearOrchestratorLog() {
+            const logDiv = document.getElementById('orchestrator-log');
+            if (logDiv) {
+                logDiv.innerHTML = '';
+                logOrchestrator('info', 'Log cleared');
+            }
         }
         
         function updateImportStatus(status) {
