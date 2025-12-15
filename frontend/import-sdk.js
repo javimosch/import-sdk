@@ -1657,7 +1657,7 @@ class ImportSDK {
         // First run built-in validation
         if (this.activeMapping.validate) {
             for (const [field, [validator, msg]] of Object.entries(this.activeMapping.validate)) {
-                if (!validator(row[field])) {
+                if (!validator(row[field], row)) {
                     return { isValid: false, error: msg || `Invalid ${field}` };
                 }
             }
