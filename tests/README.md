@@ -10,42 +10,69 @@ Dependencies are already installed in this directory:
 
 ## Running Tests
 
-### Validation Test
-
-Tests the SDK's validation logic including:
-- Cross-field validation (e.g., "Either Make ID or Type Label is required")
-- Format validation (e.g., "Chip Number must be exactly 24 characters")
-- Required columns validation
+### Run All Tests
 
 ```bash
-node validate-test.js
+# From project root
+./run-all-tests.sh
 ```
 
-Expected output:
+### Run Individual Tests
+
+```bash
+# Validation tests
+node tests/validate-test.js
+
+# Column validation
+node tests/column-validation-test.js
+
+# Transformers and mapping
+node tests/transform-test.js
+
+# Row filters
+node tests/filter-test.js
+
+# Flow control
+node tests/flow-control-test.js
 ```
-SDK Loaded: true
-Starting Validation Test...
-...
-SUCCESS: Correct number of errors caught.
-SUCCESS: Caught Chip Number length error.
-SUCCESS: Caught Cross-field validation error.
-FINAL VERDICT: TEST PASSED ✅
-```
 
-## Test Coverage
+## Test Suites
 
-### validate-test.js
+### 1. validate-test.js
+Tests custom validation logic including:
+- Cross-field validation (e.g., "Either Make ID or Type Label is required")
+- Format validation (e.g., "Chip Number must be exactly 24 characters")
+- Error counting and reporting
 
-Simulates a CSV import with the following test data:
+### 2. column-validation-test.js
+Tests column-level validation:
+- `requiredColumns` - Ensures missing required column headers trigger errors
+- `allowedColumns` - Ensures unknown columns are rejected
+- Combined required and allowed column validation
 
-| Row | makeId | typeLabel | volume | chipNumber | Expected Result |
-|-----|--------|-----------|--------|------------|-----------------|
-| 1   | (empty) | TypeA     | 1000   | ABC123456789012345678901 | ✅ Valid |
-| 2   | (empty) | TypeB     | 2000   | SHORT_ID   | ❌ Invalid (chip length) |
-| 3   | (empty) | (empty)   | 3000   | DEF123456789012345678901 | ❌ Invalid (missing both) |
+### 3. transform-test.js
+Tests data transformation features:
+- Custom field transformers (e.g., uppercase, parseInt)
+- Field mapping (renaming columns)
+- Combined mapping and transformation
 
-The test verifies:
-1. Total row count is correct
-2. Error count is 2
-3. Chip Number length validation error is caught
-4. Cross-field validation error is caught
+### 4. filter-test.js
+Tests row filtering capabilities:
+- Simple value filters (e.g., age >= 21)
+- Multiple filters with AND logic
+- Regex-based filters
+
+### 5. flow-control-test.js
+Tests UI flow control:
+- `flow.forceCheck` - Ensures start button is disabled until check runs
+- `flow.preventStartOnErrors` - Ensures start button stays disabled when errors exist
+- Default behavior without flow control
+
+## Test Results
+
+All tests use the following status indicators:
+- ✅ PASS - Test passed successfully
+- ❌ FAIL - Test failed with details
+
+The test runner (`run-all-tests.sh`) provides a summary showing total passed/failed tests.
+
