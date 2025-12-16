@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Validation & Flow Demo - Import SDK</title>
+    <link rel="stylesheet" href="import-ui.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #2d3748;
+            margin: 0 0 10px 0;
+        }
+
+        .header p {
+            color: #718096;
+            margin: 0;
+        }
+
+        .controls {
+            margin-bottom: 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-test {
+            background: #edf2f7;
+            color: #4a5568;
+            border: 1px solid #cbd5e0;
+        }
+
+        .btn-test:hover {
+            background: #e2e8f0;
+        }
+
+        .info-box {
+            background: #ebf8ff;
+            border-left: 4px solid #4299e1;
+            padding: 15px;
+            margin-bottom: 20px;
+            color: #2c5282;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Validation & Flow Demo</h1>
+            <p>Demonstrating strict column checking, flow control, and global row validation</p>
+        </div>
+
+        <div class="info-box">
+            <strong>Active Rules:</strong>
+            <ul style="margin: 5px 0 0 20px;">
+                <li>Allowed columns: <code>makeId, typeLabel, volume, chipNumber</code> (others will fail check)</li>
+                <li>Flow: <strong>Force Check</strong> is ON (must check before import)</li>
+                <li>Flow: <strong>Prevent Start on Error</strong> is ON (cannot start if check fails)</li>
+                <li>Validation: <code>chipNumber</code> must be exactly 24 chars</li>
+                <li>Validation: If <code>makeId</code> is missing, <code>typeLabel</code> is required</li>
+            </ul>
+        </div>
+
+        <div class="controls">
+            <span>Test Datasets:</span>
+            <button class="btn btn-test" onclick="loadValidFile()">Load Valid File</button>
+            <button class="btn btn-test" onclick="loadInvalidColumns()">Load Invalid Columns</button>
+            <button class="btn btn-test" onclick="loadInvalidRow()">Load Invalid Row (Validation)</button>
+        </div>
+
+        <div id="import-container"></div>
+    </div>
+
+    <script src="import-sdk.js"></script>
+    <script>
+        // Init SDK with new strict features
+        const sdk = ImportSDK.init(document.getElementById('import-container'), {
+            apiEndpoint: 'http://localhost:3000/api/import',
+
+            // 1. Strict Column Validation
+            allowedColumns: ['makeId', 'typeLabel', 'volume', 'chipNumber'],
+            warnUnknownColumns: true, // Will trigger error on unknown columns
+
+            // 2. Flow Control
+            flow: {
+                forceCheck: true,        // User MUST click "Check File" first
+                preventStartOnErrors: true // "Start Import" disabled if check has errors
+            },
+
+            // 3. Global Row Validation
+            validate: (row) => {
+                // Cross-field requirement
+                if (!row.makeId && !row.typeLabel) {
+                    return {
+                        isValid: false,
+                        error: 'If Make ID is missing, Type Label is required'
+                    };
+                }
+
+                // Length constraint
+                if (row.chipNumber && row.chipNumber.length !== 24) {
+                    return {
+                        isValid: false,
+                        error: `Chip Number must be 24 chars (got ${row.chipNumber.length})`
+                    };
+                }
+
+                return { isValid: true };
+            },
+
+            // Mock send handler
+            sendHandler: async (batch) => {
+                await new Promise(r => setTimeout(r, 800)); // Simulate delay
+                return { success: batch.length, errors: [] };
+            }
+        });
+
+        // Test Data Generators
+        function createCSVFile(content, name) {
+            const blob = new Blob([content], { type: 'text/csv' });
+            return new File([blob], name, { type: 'text/csv' });
+        }
+
+        function loadValidFile() {
+            const csv = `makeId,typeLabel,volume,chipNumber
+101,Type A,1000,ABC123456789012345678901
+102,Type B,2000,DEF123456789012345678901`;
+            const file = createCSVFile(csv, 'valid_data.csv');
+            sdk.handleFileSelect(file);
+        }
+
+        function loadInvalidColumns() {
+            const csv = `makeId,typeLabel,volume,chipNumber,UNKNOWN_COLUMN
+101,Type A,1000,ABC123456789012345678901,some-data
+102,Type B,2000,DEF123456789012345678901,other-data`;
+            const file = createCSVFile(csv, 'invalid_columns.csv');
+            sdk.handleFileSelect(file);
+        }
+
+        function loadInvalidRow() {
+            const csv = `makeId,typeLabel,volume,chipNumber
+,Type A,1000,ABC123456789012345678901
+,,2000,DEF123456789012345678901
+103,Type C,3000,SHORT_CHIP_ID`; // 2nd row missing makeId & typeLabel, 3rd row invalid chip
+            const file = createCSVFile(csv, 'invalid_rows.csv');
+            sdk.handleFileSelect(file);
+        }
+    </script>
+</body>
+
+</html>
