@@ -249,8 +249,18 @@
                                         <td class="hidden sm:table-cell"><span
                                                 class="text-gray-600 text-xs">array</span></td>
                                         <td><code class="bg-gray-100 px-1 sm:px-2 py-1 rounded text-xs">[]</code></td>
-                                        <td class="hidden lg:table-cell text-gray-600 text-xs">Data types to collect for
-                                            export</td>
+                                        export</td>
+                                    </tr>
+                                    <tr class="border-b">
+                                        <td><code
+                                                class="bg-gray-100 px-1 sm:px-2 py-1 rounded text-xs">collectAllErrors</code>
+                                        </td>
+                                        <td class="hidden sm:table-cell"><span
+                                                class="text-gray-600 text-xs">boolean</span></td>
+                                        <td><code class="bg-gray-100 px-1 sm:px-2 py-1 rounded text-xs">false</code>
+                                        </td>
+                                        <td class="hidden lg:table-cell text-gray-600 text-xs">Collect all validation
+                                            errors per row instead of stopping at first error</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -327,6 +337,28 @@
              };
         }
         
+        return { isValid: true };
+    }
+});</pre>
+                                </div>
+                            </div>
+
+                            <!-- Unified Error Reporting -->
+                            <div class="bg-white rounded-xl shadow-lg p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8">
+                                <h3 class="text-xl sm:text-2xl font-semibold text-gray-800 mb-4">Unified Error Reporting
+                                </h3>
+                                <p class="text-gray-600 mb-4 text-sm sm:text-base">By default, the SDK stops validating
+                                    a row as soon as the first error is found. Enable <code>collectAllErrors</code> to
+                                    run all validation checks and report all errors found for a single row.</p>
+
+                                <div class="mockup-code">
+                                    <pre class="px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm overflow-x-auto">ImportSDK.init(container, {
+    // Enable collecting multiple errors per row
+    collectAllErrors: true,
+    
+    validate: (row) => {
+        // If row has multiple issues (e.g. missing ID AND invalid date),
+        // SDK will report: "Missing ID | Invalid Date"
         return { isValid: true };
     }
 });</pre>

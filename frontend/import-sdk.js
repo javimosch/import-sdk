@@ -146,6 +146,7 @@ class ImportSDK {
             fetchOptions: config.fetchOptions || {},
             filters: config.filters || {},
             validate: config.validate || null, // Global validation function
+            collectAllErrors: config.collectAllErrors || false, // Collect all validation errors instead of stopping at first
             resultExport: config.resultExport || [],
             onProgress: config.onProgress || null,
             onComplete: config.onComplete || null,
@@ -1731,15 +1732,29 @@ class ImportSDK {
             validator = this.config.validate;
         }
 
+        // Determine if we should collect all errors
+        const collectAll = this.config.collectAllErrors;
+        const errors = [];
+
         // 1. Function-based validation (new style)
         if (typeof validator === 'function') {
             try {
                 const result = validator(row);
                 if (result && !result.isValid) {
-                    return { isValid: false, error: result.error || 'Validation failed' };
+                    const errorMsg = result.error || 'Validation failed';
+                    if (collectAll) {
+                        errors.push(errorMsg);
+                    } else {
+                        return { isValid: false, error: errorMsg };
+                    }
                 }
             } catch (err) {
-                return { isValid: false, error: `Validator error: ${err.message}` };
+                const errorMsg = `Validator error: ${err.message}`;
+                if (collectAll) {
+                    errors.push(errorMsg);
+                } else {
+                    return { isValid: false, error: errorMsg };
+                }
             }
         }
         // 2. Object-based validation (old style)
@@ -1752,40 +1767,54 @@ class ImportSDK {
 
                 for (const [validator, msg] of validators) {
                     if (typeof validator === 'function' && !validator(row[field], row)) {
-                        return { isValid: false, error: msg || `Invalid ${field}` };
+                        const errorMsg = msg || `Invalid ${field}`;
+                        if (collectAll) {
+                            errors.push(errorMsg);
+                        } else {
+                            return { isValid: false, error: errorMsg };
+                        }
                     }
                 }
             }
         }
 
-        // Then run plugin validations
+        // 3. Run field-level plugin validations
         for (const plugin of this.activePlugins.field) {
             if (plugin.validate) {
                 for (const [field, value] of Object.entries(row)) {
                     try {
                         const result = plugin.validate(value, field, row, plugin.config || {});
                         if (result && !result.isValid) {
-                            return { 
-                                isValid: false, 
-                                error: result.error || `Plugin '${plugin.name}' validation failed for ${field}` 
-                            };
+                            const errorMsg = result.error || `Plugin '${plugin.name}' validation failed for ${field}`;
+                            if (collectAll) {
+                                errors.push(errorMsg);
+                            } else {
+                                return { isValid: false, error: errorMsg };
+                            }
                         }
                         // Handle boolean return for backward compatibility
                         if (typeof result === 'boolean' && !result) {
-                            return { 
-                                isValid: false, 
-                                error: `Plugin '${plugin.name}' validation failed for ${field}` 
-                            };
+                            const errorMsg = `Plugin '${plugin.name}' validation failed for ${field}`;
+                            if (collectAll) {
+                                errors.push(errorMsg);
+                            } else {
+                                return { isValid: false, error: errorMsg };
+                            }
                         }
                     } catch (err) {
                         this.log(`Plugin '${plugin.name}' validate error on field '${field}': ${err.message}`, 'error');
-                        return { isValid: false, error: `Plugin validation error: ${err.message}` };
+                        const errorMsg = `Plugin validation error: ${err.message}`;
+                        if (collectAll) {
+                            errors.push(errorMsg);
+                        } else {
+                            return { isValid: false, error: errorMsg };
+                        }
                     }
                 }
             }
         }
 
-        // Run row-level plugin validations
+        // 4. Run row-level plugin validations
         for (const plugin of this.activePlugins.row) {
             if (plugin.validate) {
                 try {
@@ -1794,23 +1823,40 @@ class ImportSDK {
                         const errorMsg = result.error || 
                                        (result.errors && result.errors.join('; ')) || 
                                        `Plugin '${plugin.name}' row validation failed`;
-                        return { 
-                            isValid: false, 
-                            error: errorMsg
-                        };
+                        if (collectAll) {
+                            errors.push(errorMsg);
+                        } else {
+                            return { isValid: false, error: errorMsg };
+                        }
                     }
                     // Handle boolean return for backward compatibility
                     if (typeof result === 'boolean' && !result) {
-                        return { 
-                            isValid: false, 
-                            error: `Plugin '${plugin.name}' row validation failed` 
-                        };
+                        const errorMsg = `Plugin '${plugin.name}' row validation failed`;
+                        if (collectAll) {
+                            errors.push(errorMsg);
+                        } else {
+                            return { isValid: false, error: errorMsg };
+                        }
                     }
                 } catch (err) {
                     this.log(`Plugin '${plugin.name}' row validate error: ${err.message}`, 'error');
-                    return { isValid: false, error: `Plugin validation error: ${err.message}` };
+                    const errorMsg = `Plugin validation error: ${err.message}`;
+                    if (collectAll) {
+                        errors.push(errorMsg);
+                    } else {
+                        return { isValid: false, error: errorMsg };
+                    }
                 }
             }
+        }
+
+        // If we collected errors, return them all joined
+        if (errors.length > 0) {
+            return { 
+                isValid: false, 
+                error: errors.join(' | '),
+                errors: errors // Also keep individual errors for programmatic access
+            };
         }
 
         return { isValid: true };
