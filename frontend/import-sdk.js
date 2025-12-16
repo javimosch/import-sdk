@@ -1736,23 +1736,59 @@ class ImportSDK {
         const collectAll = this.config.collectAllErrors;
         const errors = [];
 
+        // Helper to handle error result
+        const handleError = (msg) => {
+            if (collectAll) {
+                errors.push(msg);
+                return true; // Continue validation
+            }
+            return false; // Stop validation
+        };
+
+        // Helper to handle result object
+        const handleResult = (result, defaultMsg) => {
+            let shouldContinue = true;
+            if (result && !result.isValid) {
+                // Handle multiple errors array
+                if (result.errors && Array.isArray(result.errors)) {
+                    for (const err of result.errors) {
+                        shouldContinue = handleError(err);
+                        if (!shouldContinue) return { isValid: false, error: err };
+                    }
+                }
+                
+                // Handle single error string (fallback or additional to errors array)
+                if (result.error) {
+                    shouldContinue = handleError(result.error);
+                    if (!shouldContinue) return { isValid: false, error: result.error };
+                }
+                
+                // Handle generic error if no message provided
+                if (!result.error && (!result.errors || result.errors.length === 0)) {
+                    shouldContinue = handleError(defaultMsg);
+                    if (!shouldContinue) return { isValid: false, error: defaultMsg };
+                }
+            }
+            return shouldContinue; // Return generic continue flag (true if we are collecting errors or if valid)
+        };
+
         // 1. Function-based validation (new style)
         if (typeof validator === 'function') {
             try {
                 const result = validator(row);
-                if (result && !result.isValid) {
-                    const errorMsg = result.error || 'Validation failed';
-                    if (collectAll) {
-                        errors.push(errorMsg);
-                    } else {
-                        return { isValid: false, error: errorMsg };
-                    }
+                const shouldContinue = handleResult(result, 'Validation failed');
+                if (!collectAll && !shouldContinue && !result.isValid) {
+                     // We already returned inside handleResult if not collecting all
+                     // But just in case logic slips through
+                     return result; 
+                }
+                // If not collecting all, and result was invalid, handleResult handles returning early if needed
+                if (!collectAll && result && !result.isValid) {
+                    return result; 
                 }
             } catch (err) {
                 const errorMsg = `Validator error: ${err.message}`;
-                if (collectAll) {
-                    errors.push(errorMsg);
-                } else {
+                if (!handleError(errorMsg)) {
                     return { isValid: false, error: errorMsg };
                 }
             }
@@ -1765,12 +1801,10 @@ class ImportSDK {
                 // If it's multiple [[fn, msg], ...], validationDef[0] will be an array
                 const validators = Array.isArray(validationDef[0]) ? validationDef : [validationDef];
 
-                for (const [validator, msg] of validators) {
-                    if (typeof validator === 'function' && !validator(row[field], row)) {
+                for (const [validatorFn, msg] of validators) {
+                    if (typeof validatorFn === 'function' && !validatorFn(row[field], row)) {
                         const errorMsg = msg || `Invalid ${field}`;
-                        if (collectAll) {
-                            errors.push(errorMsg);
-                        } else {
+                        if (!handleError(errorMsg)) {
                             return { isValid: false, error: errorMsg };
                         }
                     }
@@ -1784,29 +1818,22 @@ class ImportSDK {
                 for (const [field, value] of Object.entries(row)) {
                     try {
                         const result = plugin.validate(value, field, row, plugin.config || {});
-                        if (result && !result.isValid) {
-                            const errorMsg = result.error || `Plugin '${plugin.name}' validation failed for ${field}`;
-                            if (collectAll) {
-                                errors.push(errorMsg);
-                            } else {
-                                return { isValid: false, error: errorMsg };
-                            }
-                        }
+                        const shouldContinue = handleResult(result, `Plugin '${plugin.name}' validation failed for ${field}`);
+                        
                         // Handle boolean return for backward compatibility
                         if (typeof result === 'boolean' && !result) {
                             const errorMsg = `Plugin '${plugin.name}' validation failed for ${field}`;
-                            if (collectAll) {
-                                errors.push(errorMsg);
-                            } else {
+                            if (!handleError(errorMsg)) {
                                 return { isValid: false, error: errorMsg };
                             }
+                        } else if (!collectAll && result && !result.isValid) {
+                             return { isValid: false, error: result.error || 'Plugin validation failed' };
                         }
+
                     } catch (err) {
                         this.log(`Plugin '${plugin.name}' validate error on field '${field}': ${err.message}`, 'error');
                         const errorMsg = `Plugin validation error: ${err.message}`;
-                        if (collectAll) {
-                            errors.push(errorMsg);
-                        } else {
+                        if (!handleError(errorMsg)) {
                             return { isValid: false, error: errorMsg };
                         }
                     }
@@ -1819,48 +1846,43 @@ class ImportSDK {
             if (plugin.validate) {
                 try {
                     const result = plugin.validate(row, this, plugin.config || {});
-                    if (result && !result.isValid) {
-                        const errorMsg = result.error || 
-                                       (result.errors && result.errors.join('; ')) || 
-                                       `Plugin '${plugin.name}' row validation failed`;
-                        if (collectAll) {
-                            errors.push(errorMsg);
-                        } else {
-                            return { isValid: false, error: errorMsg };
-                        }
-                    }
-                    // Handle boolean return for backward compatibility
+                    
+                     // Handle boolean return for backward compatibility
                     if (typeof result === 'boolean' && !result) {
-                        const errorMsg = `Plugin '${plugin.name}' row validation failed`;
-                        if (collectAll) {
-                            errors.push(errorMsg);
-                        } else {
-                            return { isValid: false, error: errorMsg };
-                        }
+                         const errorMsg = `Plugin '${plugin.name}' row validation failed`;
+                         if (!handleError(errorMsg)) {
+                             return { isValid: false, error: errorMsg };
+                         }
+                    } else {
+                         const shouldContinue = handleResult(result, `Plugin '${plugin.name}' row validation failed`);
+                         if (!collectAll && result && !result.isValid) {
+                             // Correctly handle the return if handleResult didn't already
+                             return { isValid: false, error: result.error || 'Plugin validation failed' };
+                         }
                     }
+
                 } catch (err) {
                     this.log(`Plugin '${plugin.name}' row validate error: ${err.message}`, 'error');
                     const errorMsg = `Plugin validation error: ${err.message}`;
-                    if (collectAll) {
-                        errors.push(errorMsg);
-                    } else {
+                    if (!handleError(errorMsg)) {
                         return { isValid: false, error: errorMsg };
                     }
                 }
             }
         }
-
-        // If we collected errors, return them all joined
+        
+        // Final check
         if (errors.length > 0) {
-            return { 
-                isValid: false, 
-                error: errors.join(' | '),
-                errors: errors // Also keep individual errors for programmatic access
+            return {
+                isValid: false,
+                error: errors.join('; '), // Main error message (joined)
+                errors: errors // Detailed errors array
             };
         }
 
         return { isValid: true };
     }
+
 
     transformRow(row) {
         const transformed = {};
