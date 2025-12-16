@@ -145,6 +145,7 @@ class ImportSDK {
             headers: config.headers || {},
             fetchOptions: config.fetchOptions || {},
             filters: config.filters || {},
+            validate: config.validate || null, // Global validation function
             resultExport: config.resultExport || [],
             onProgress: config.onProgress || null,
             onComplete: config.onComplete || null,
