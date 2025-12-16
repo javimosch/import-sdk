@@ -173,6 +173,16 @@ class ImportSDK {
                 stripEmptyLines: config.csvNormalization?.stripEmptyLines !== false, // Default: true
                 sanitizeHeaders: config.csvNormalization?.sanitizeHeaders !== false, // Default: true
                 ...config.csvNormalization
+            },
+            // Column Validation
+            allowedColumns: config.allowedColumns || [],
+            warnUnknownColumns: config.warnUnknownColumns !== false, // Default: true
+            
+            // Flow Control
+            flow: {
+                forceCheck: config.flow?.forceCheck || false, // Force check before import
+                preventStartOnErrors: config.flow?.preventStartOnErrors !== false, // Default: true
+                ...config.flow
             }
         };
 
@@ -691,7 +701,11 @@ class ImportSDK {
         document.getElementById('import-sdk-file-name').textContent = file.name;
         document.getElementById('import-sdk-file-info').style.display = 'flex';
         document.getElementById('import-sdk-upload-prompt').style.display = 'none';
-        document.getElementById('import-sdk-start-btn').disabled = false;
+        
+        // Flow control: if forceCheck is enabled, keep start disabled until check passes
+        const startBtn = document.getElementById('import-sdk-start-btn');
+        startBtn.disabled = this.config.flow.forceCheck;
+        
         document.getElementById('import-sdk-check-btn').disabled = false;
         
         const mappingInfo = this.activeMapping.name 
@@ -1405,11 +1419,35 @@ class ImportSDK {
         fileReader.onload = (e) => {
             try {
                 let csvContent = e.target.result;
+                let headersChecked = false;
                 let papaConfig = {
                     header: true,
                     skipEmptyLines: true,
                     dynamicTyping: false, // Keep as strings for custom transformers
                     chunk: async (results, parser) => {
+                        // Validate columns on first chunk
+                        if (!headersChecked) {
+                            headersChecked = true;
+                            if (this.config.allowedColumns && this.config.allowedColumns.length > 0) {
+                                const fileColumns = results.meta.fields || [];
+                                const unknownColumns = fileColumns.filter(col => !this.config.allowedColumns.includes(col));
+                                
+                                if (unknownColumns.length > 0) {
+                                    const msg = `Unknown columns found: ${unknownColumns.join(', ')}`;
+                                    // Treat as error to ensure check fails
+                                    this.log(msg, 'error');
+                                    this.state.errorCount++;
+                                    
+                                    // Send error sample
+                                    this.sendErrorSample(msg, 'validation', { unknownColumns });
+                                    
+                                    if (this.config.warnUnknownColumns) {
+                                       // Already logged as error above
+                                    }
+                                }
+                            }
+                        }
+
                         parser.pause();
                         await this.processRows(results.data, parser);
                         parser.resume();
@@ -1655,7 +1693,16 @@ class ImportSDK {
 
     validateRow(row) {
         // First run built-in validation
-        if (this.activeMapping.validate) {
+        if (typeof this.activeMapping.validate === 'function') {
+            try {
+                const result = this.activeMapping.validate(row);
+                if (result && !result.isValid) {
+                    return result;
+                }
+            } catch (err) {
+                 return { isValid: false, error: `Validation error: ${err.message}` };
+            }
+        } else if (this.activeMapping.validate) {
             for (const [field, validationDef] of Object.entries(this.activeMapping.validate)) {
                 // Normalize to array of validators: [[fn, msg], ...]
                 // If it's a single validator [fn, msg], validationDef[0] will be the function
@@ -1703,9 +1750,12 @@ class ImportSDK {
                 try {
                     const result = plugin.validate(row, this, plugin.config || {});
                     if (result && !result.isValid) {
+                        const errorMsg = result.error || 
+                                       (result.errors && result.errors.join('; ')) || 
+                                       `Plugin '${plugin.name}' row validation failed`;
                         return { 
                             isValid: false, 
-                            error: result.error || `Plugin '${plugin.name}' row validation failed` 
+                            error: errorMsg
                         };
                     }
                     // Handle boolean return for backward compatibility
@@ -2026,8 +2076,18 @@ class ImportSDK {
         const startBtn = document.getElementById('import-sdk-start-btn');
         const checkBtn = document.getElementById('import-sdk-check-btn');
         
-        startBtn.disabled = false;
         checkBtn.disabled = false;
+        
+        // Flow control: Prevent start if check failed
+        let shouldEnableStart = true;
+        if (this.state.mode === 'check') {
+            if (this.config.flow.preventStartOnErrors && this.state.errorCount > 0) {
+                shouldEnableStart = false;
+                this.log(this.t('validationError', { error: 'Fix errors before importing' }), 'warning');
+            }
+        }
+        
+        startBtn.disabled = !shouldEnableStart;
         startBtn.textContent = this.t('startImport');
         checkBtn.textContent = this.t('checkFile');
         

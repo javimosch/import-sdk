@@ -5,4 +5,4 @@ node_modules
 *.csv
 ref-poc
 ref-*
-frontend/*config*
+frontend/*config*!frontend/test-config-debug.html

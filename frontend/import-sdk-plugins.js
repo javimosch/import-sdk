@@ -298,6 +298,14 @@ ImportSDK.use({
      * Transform row with smart field mapping
      */
     transform(row, originalRow, sdk, config) {
+        console.warn('DEBUG: smartFieldMapping.transform', { 
+            rowKeys: Object.keys(row), 
+            hasOriginalRow: !!originalRow, 
+            hasSdk: !!sdk, 
+            hasConfig: !!config,
+            configType: typeof config,
+            configAliases: config ? !!config.aliases : 'N/A'
+        });
         const transformed = { ...row };
         
         // 1. Apply field aliases
