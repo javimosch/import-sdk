@@ -34,7 +34,7 @@ if (typeof ImportSDK !== 'undefined') {
          * Execute file-level plugins
          */
         async executeFilePlugins(action, ...args) {
-            const filePlugins = this.getPluginsByType('file');
+            const filePlugins = ImportSDK.getPluginsByType('file');
             const results = [];
             
             for (const plugin of filePlugins) {
@@ -58,7 +58,7 @@ if (typeof ImportSDK !== 'undefined') {
          * Execute error-level plugins
          */
         async executeErrorPlugins(action, ...args) {
-            const errorPlugins = this.getPluginsByType('error');
+            const errorPlugins = ImportSDK.getPluginsByType('error');
             let result = args[0]; // First arg is typically the error object
             
             for (const plugin of errorPlugins) {
@@ -78,7 +78,7 @@ if (typeof ImportSDK !== 'undefined') {
          * Execute metrics-level plugins
          */
         async executeMetricsPlugins(action, ...args) {
-            const metricsPlugins = this.getPluginsByType('metrics');
+            const metricsPlugins = ImportSDK.getPluginsByType('metrics');
             const results = {};
             
             for (const plugin of metricsPlugins) {
