@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ImportSDK Debug Config</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        #import-container { border: 1px solid #ccc; padding: 20px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>ImportSDK Debug Config</h1>
+    <p>This page exactly reproduces the user configuration to debug the "aliases of undefined" error.</p>
+    
+    <div id="import-container"></div>
+
+    <!-- Dependencies -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <script src="import-sdk.js"></script>
+    <script src="import-sdk-plugins.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const container = document.getElementById('import-container');
+
+            // --- User Config Simulation ---
+            const props = {
+                apiEndpoint: 'http://localhost:3000/api/import',
+                chunkSize: 50,
+                maxFileSize: 10 * 1024 * 1024, // 10MB (user passed 10, likely MB based on context, checking usage)
+                allowedMimeTypes: ['text/csv'],
+                // These from user's onMounted logic:
+                requiredColumns: ['tankNumber'],
+                allowedColumns: ['tankNumber', 'latitude', 'longitude', 'volume'],
+                validateRules: {}
+            };
+
+            // Mock translations
+            const locale = 'en';
+            const translations = {}; // Empty default
+
+            if (container) {
+                console.log('Configuring csvFileValidator...');
+                // Set configuration for CSV file validator plugin
+                ImportSDKPlugins.configure('csvFileValidator', {
+                    requiredColumns: props.requiredColumns,
+                    allowedColumns: props.allowedColumns,
+                    maxFileSize: props.maxFileSize,
+                    allowedMimeTypes: props.allowedMimeTypes,
+                    warnUnknownColumns: true
+                });
+                console.log('csvFileValidator configured.');
+
+                console.log('Initializing ImportSDK...');
+                // Init the sdk
+                const sdk = ImportSDK.init(container, {
+                    locale: locale,
+                    apiEndpoint: props.apiEndpoint,
+                    chunkSize: props.chunkSize,
+                    translations: translations,
+                    validate: props.validateRules,
+                });
+                console.log('ImportSDK initialized.', sdk);
+                
+                // --- DEBUGGING HELPERS ---
+                // Manually inspect the smartFieldMapping plugin config
+                const smartPlugin = ImportSDKPlugins.getPlugin('smartFieldMapping');
+                console.log('DEBUG: smartFieldMapping plugin state:', smartPlugin);
+                if (smartPlugin && !smartPlugin.config) {
+                    console.error('CRITICAL: smartFieldMapping.config is undefined/null!');
+                } else if (smartPlugin && !smartPlugin.config.aliases) {
+                    console.error('CRITICAL: smartFieldMapping.config.aliases is missing!');
+                } else {
+                    console.log('DEBUG: smartFieldMapping config seems OK:', smartPlugin.config);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
