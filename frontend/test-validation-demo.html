@@ -88,6 +88,7 @@
             <strong>Active Rules:</strong>
             <ul style="margin: 5px 0 0 20px;">
                 <li>Allowed columns: <code>makeId, typeLabel, volume, chipNumber</code> (others will fail check)</li>
+                <li>Required columns: <code>makeId</code> (missing will fail check)</li>
                 <li>Flow: <strong>Force Check</strong> is ON (must check before import)</li>
                 <li>Flow: <strong>Prevent Start on Error</strong> is ON (cannot start if check fails)</li>
                 <li>Validation: <code>chipNumber</code> must be exactly 24 chars</li>
@@ -99,6 +100,7 @@
             <span>Test Datasets:</span>
             <button class="btn btn-test" onclick="loadValidFile()">Load Valid File</button>
             <button class="btn btn-test" onclick="loadInvalidColumns()">Load Invalid Columns</button>
+            <button class="btn btn-test" onclick="loadMissingRequired()">Load Missing Required</button>
             <button class="btn btn-test" onclick="loadInvalidRow()">Load Invalid Row (Validation)</button>
         </div>
 
@@ -113,6 +115,7 @@
 
             // 1. Strict Column Validation
             allowedColumns: ['makeId', 'typeLabel', 'volume', 'chipNumber'],
+            requiredColumns: ['makeId'], // makeId is required
             warnUnknownColumns: true, // Will trigger error on unknown columns
 
             // 2. Flow Control
@@ -168,6 +171,14 @@
 101,Type A,1000,ABC123456789012345678901,some-data
 102,Type B,2000,DEF123456789012345678901,other-data`;
             const file = createCSVFile(csv, 'invalid_columns.csv');
+            sdk.handleFileSelect(file);
+        }
+
+        function loadMissingRequired() {
+            const csv = `typeLabel,volume,chipNumber
+Type A,1000,ABC123456789012345678901
+Type B,2000,DEF123456789012345678901`; // Missing 'makeId'
+            const file = createCSVFile(csv, 'missing_required.csv');
             sdk.handleFileSelect(file);
         }
 

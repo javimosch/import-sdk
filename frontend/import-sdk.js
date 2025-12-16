@@ -176,6 +176,7 @@ class ImportSDK {
             },
             // Column Validation
             allowedColumns: config.allowedColumns || [],
+            requiredColumns: config.requiredColumns || [],
             warnUnknownColumns: config.warnUnknownColumns !== false, // Default: true
             
             // Flow Control
@@ -1428,8 +1429,22 @@ class ImportSDK {
                         // Validate columns on first chunk
                         if (!headersChecked) {
                             headersChecked = true;
+                            const fileColumns = results.meta.fields || [];
+
+                            // Check required columns
+                            if (this.config.requiredColumns && this.config.requiredColumns.length > 0) {
+                                const missingColumns = this.config.requiredColumns.filter(col => !fileColumns.includes(col));
+                                
+                                if (missingColumns.length > 0) {
+                                    const msg = `Missing required columns: ${missingColumns.join(', ')}`;
+                                    this.log(msg, 'error');
+                                    this.state.errorCount++;
+                                    this.sendErrorSample(msg, 'validation', { missingColumns });
+                                }
+                            }
+
+                            // Check allowed columns
                             if (this.config.allowedColumns && this.config.allowedColumns.length > 0) {
-                                const fileColumns = results.meta.fields || [];
                                 const unknownColumns = fileColumns.filter(col => !this.config.allowedColumns.includes(col));
                                 
                                 if (unknownColumns.length > 0) {
