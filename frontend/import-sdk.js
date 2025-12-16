@@ -1723,18 +1723,27 @@ class ImportSDK {
     }
 
     validateRow(row) {
-        // First run built-in validation
-        if (typeof this.activeMapping.validate === 'function') {
+        let validator = this.activeMapping.validate;
+
+        // If no mapping-specific validator, check global config
+        if (!validator && this.config.validate) {
+            validator = this.config.validate;
+        }
+
+        // 1. Function-based validation (new style)
+        if (typeof validator === 'function') {
             try {
-                const result = this.activeMapping.validate(row);
+                const result = validator(row);
                 if (result && !result.isValid) {
-                    return result;
+                    return { isValid: false, error: result.error || 'Validation failed' };
                 }
             } catch (err) {
-                 return { isValid: false, error: `Validation error: ${err.message}` };
+                return { isValid: false, error: `Validator error: ${err.message}` };
             }
-        } else if (this.activeMapping.validate) {
-            for (const [field, validationDef] of Object.entries(this.activeMapping.validate)) {
+        }
+        // 2. Object-based validation (old style)
+        else if (typeof validator === 'object') {
+            for (const [field, validationDef] of Object.entries(validator)) {
                 // Normalize to array of validators: [[fn, msg], ...]
                 // If it's a single validator [fn, msg], validationDef[0] will be the function
                 // If it's multiple [[fn, msg], ...], validationDef[0] will be an array

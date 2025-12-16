@@ -108,14 +108,7 @@ ImportSDK.use({
     config: {
         allowedMimeTypes: ['text/csv', 'application/csv'],
         requiredColumns: [],
-        allowedColumns: [
-            'chipNumber', 'tankNumber', 'rfidNumber', 'uhfNumber',
-            'memoryChipNumber', 'longitude', 'latitude', 'streetNumber',
-            'roadNumber', 'street', 'city', 'zipCode', 'borough',
-            'department', 'region', 'country', 'comment', 'active',
-            'commissioningDate', 'makeId', 'typeId', 'categoryId',
-            'typeLabel', 'categoryLabel', 'volume'
-        ],
+        allowedColumns: [], // Empty default
         warnUnknownColumns: true,
         maxFileSize: 50 * 1024 * 1024, // 50MB
         delimiter: ',',
@@ -236,21 +229,14 @@ ImportSDK.use({
     
     config: {
         // Field aliases - map multiple possible names to target field
-        aliases: {
-            chipNumber: ['rfidNumber', 'uhfNumber', 'memoryChipNumber', 'chip_id', 'ChipID'],
-            tankNumber: ['tank_id', 'TankID', 'tankId', 'tank_number', 'TankNumber'],
-            latitude: ['lat', 'Latitude', 'LAT'],
-            longitude: ['lng', 'lon', 'Longitude', 'LNG', 'LONG'],
-            streetNumber: ['street_number', 'StreetNumber', 'street_no'],
-            roadNumber: ['road_number', 'RoadNumber', 'road_no']
-        },
+        aliases: {},
         
         // Auto type detection
         autoTypeDetection: {
-            boolean: ['active', 'enabled', 'visible', 'is_active', 'isActive'],
-            integer: ['makeId', 'typeId', 'categoryId', 'volume', 'streetNumber', 'roadNumber'],
-            float: ['latitude', 'longitude', 'lat', 'lng'],
-            date: ['commissioningDate', 'created_at', 'updated_at', 'date']
+            boolean: [],
+            integer: [],
+            float: [],
+            date: []
         },
         
         // Field-specific transformations
@@ -352,18 +338,7 @@ ImportSDK.use({
             });
         });
         
-        // 3. Apply coordinate validation
-        ['latitude', 'longitude', 'lat', 'lng'].forEach(field => {
-            if (transformed[field]) {
-                const validated = config.transformers.coordinate(transformed[field]);
-                if (validated !== transformed[field]) {
-                    sdk.log(`Coordinate validation: ${field} ${transformed[field]} → ${validated}`, 'warning');
-                    transformed[field] = validated;
-                }
-            }
-        });
-        
-        // 4. Clean empty strings and normalize text
+        // 3. Clean empty strings and normalize text
         Object.keys(transformed).forEach(key => {
             if (transformed[key] === '') {
                 transformed[key] = null;
@@ -371,12 +346,6 @@ ImportSDK.use({
                 transformed[key] = config.transformers.text(transformed[key]);
             }
         });
-        
-        // 5. Special handling for volume (ensure numeric, default to 0)
-        if (transformed.volume !== null && transformed.volume !== undefined) {
-            const volume = config.transformers.numeric(transformed.volume, 'float');
-            transformed.volume = volume === null ? 0.0 : volume;
-        }
         
         return transformed;
     },
@@ -387,23 +356,16 @@ ImportSDK.use({
     validate(row, sdk, config) {
         const errors = [];
         
-        // Check for required fields
-        const requiredFields = ['tankNumber'];
-        requiredFields.forEach(field => {
-            if (!row[field]) {
-                errors.push(`Missing required field: ${field}`);
-            }
-        });
-        
-        // Validate coordinates if present
-        if (row.latitude !== null && row.longitude !== null) {
-            if (Math.abs(row.latitude) > 90) {
-                errors.push('Invalid latitude: must be between -90 and 90');
-            }
-            if (Math.abs(row.longitude) > 180) {
-                errors.push('Invalid longitude: must be between -180 and 180');
-            }
+        // Check for required fields if configured
+        if (config.requiredFields && Array.isArray(config.requiredFields)) {
+            config.requiredFields.forEach(field => {
+                if (!row[field]) {
+                    errors.push(`Missing required field: ${field}`);
+                }
+            });
         }
+        
+        // Generic validators could be injected here via config
         
         return errors.length === 0 ? { isValid: true } : { isValid: false, errors };
     }

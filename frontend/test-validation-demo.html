@@ -114,9 +114,7 @@
             apiEndpoint: 'http://localhost:3000/api/import',
 
             // 1. Strict Column Validation
-            allowedColumns: ['makeId', 'typeLabel', 'volume', 'chipNumber'],
             requiredColumns: ['makeId'], // makeId is required
-            warnUnknownColumns: true, // Will trigger error on unknown columns
 
             // 2. Flow Control
             flow: {
@@ -124,13 +122,13 @@
                 preventStartOnErrors: true // "Start Import" disabled if check has errors
             },
 
-            // 3. Global Row Validation
+            // 3. Global Row Validation (passed directly to init)
             validate: (row) => {
                 // Cross-field requirement
                 if (!row.makeId && !row.typeLabel) {
                     return {
                         isValid: false,
-                        error: 'If Make ID is missing, Type Label is required'
+                        error: 'Validation: If Make ID is missing, Type Label is required'
                     };
                 }
 
@@ -138,7 +136,7 @@
                 if (row.chipNumber && row.chipNumber.length !== 24) {
                     return {
                         isValid: false,
-                        error: `Chip Number must be 24 chars (got ${row.chipNumber.length})`
+                        error: `Validation: Chip Number must be 24 chars (got ${row.chipNumber.length})`
                     };
                 }
 
@@ -177,7 +175,7 @@
         function loadMissingRequired() {
             const csv = `typeLabel,volume,chipNumber
 Type A,1000,ABC123456789012345678901
-Type B,2000,DEF123456789012345678901`; // Missing 'makeId'
+Type B,2000,DEF123456789012345678901`; // Missing 'makeId' (via requiredColumns)
             const file = createCSVFile(csv, 'missing_required.csv');
             sdk.handleFileSelect(file);
         }
