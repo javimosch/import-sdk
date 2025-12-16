@@ -1656,9 +1656,16 @@ class ImportSDK {
     validateRow(row) {
         // First run built-in validation
         if (this.activeMapping.validate) {
-            for (const [field, [validator, msg]] of Object.entries(this.activeMapping.validate)) {
-                if (!validator(row[field], row)) {
-                    return { isValid: false, error: msg || `Invalid ${field}` };
+            for (const [field, validationDef] of Object.entries(this.activeMapping.validate)) {
+                // Normalize to array of validators: [[fn, msg], ...]
+                // If it's a single validator [fn, msg], validationDef[0] will be the function
+                // If it's multiple [[fn, msg], ...], validationDef[0] will be an array
+                const validators = Array.isArray(validationDef[0]) ? validationDef : [validationDef];
+
+                for (const [validator, msg] of validators) {
+                    if (typeof validator === 'function' && !validator(row[field], row)) {
+                        return { isValid: false, error: msg || `Invalid ${field}` };
+                    }
                 }
             }
         }
