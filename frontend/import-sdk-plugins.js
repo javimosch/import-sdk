@@ -297,7 +297,7 @@ ImportSDK.use({
     /**
      * Transform row with smart field mapping
      */
-    transform(row, sdk, config) {
+    transform(row, originalRow, sdk, config) {
         const transformed = { ...row };
         
         // 1. Apply field aliases

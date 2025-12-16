@@ -1694,7 +1694,7 @@ class ImportSDK {
         for (const plugin of this.activePlugins.row) {
             if (plugin.validate) {
                 try {
-                    const result = plugin.validate(row, plugin.config || {});
+                    const result = plugin.validate(row, this, plugin.config || {});
                     if (result && !result.isValid) {
                         return { 
                             isValid: false, 
@@ -1750,7 +1750,7 @@ class ImportSDK {
         this.activePlugins.row.forEach(plugin => {
             if (plugin.transform) {
                 try {
-                    finalTransformed = plugin.transform(finalTransformed, row, plugin.config || {}) || finalTransformed;
+                    finalTransformed = plugin.transform(finalTransformed, row, this, plugin.config || {}) || finalTransformed;
                 } catch (err) {
                     this.log(`Plugin '${plugin.name}' row transform error: ${err.message}`, 'error');
                 }
